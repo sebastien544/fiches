@@ -454,6 +454,15 @@
   }
   .fiche-face.back .fiche-text { color: var(--bic-dark); }
 
+  /* partie entre parenthèses : à la ligne, plus petite et discrète */
+  .fiche-sub {
+    display: block;
+    font-size: .62em;
+    font-weight: 500;
+    color: var(--ink-soft);
+    margin-top: 4px;
+  }
+
   .fiche-corner {
     position: absolute;
     top: 12px;
@@ -998,9 +1007,21 @@
 
     // On attend la fin de l'animation de retour avant d'afficher le nouveau texte
     setTimeout(() => {
-      $("#fiche-front-text").textContent = study.current.recto;
-      $("#fiche-back-text").textContent = study.current.verso;
+      setFicheText($("#fiche-front-text"), study.current.recto);
+      setFicheText($("#fiche-back-text"), study.current.verso);
     }, prefersReducedMotion() ? 0 : 160);
+  }
+
+  // « 水 みず (mizu) » → « 水 みず » puis « (mizu) » à la ligne, en plus petit
+  function setFicheText(node, text) {
+    node.textContent = "";
+    const m = text.match(/^(.*?)\s*(\(.+\))$/s);
+    if (m && m[1]) {
+      node.appendChild(document.createTextNode(m[1]));
+      node.appendChild(el("span", "fiche-sub", m[2]));
+    } else {
+      node.textContent = text;
+    }
   }
 
   function prefersReducedMotion() {
