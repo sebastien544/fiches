@@ -1,0 +1,14 @@
+{
+  "name": "Fiches — répétition espacée",
+  "short_name": "Fiches",
+  "description": "Flashcards façon fiches bristol, avec répétition espacée (système Leitner).",
+  "lang": "fr",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#FBF9F3",
+  "theme_color": "#FBF9F3",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}

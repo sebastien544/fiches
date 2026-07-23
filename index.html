@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FBF9F3">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Fiches">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Fiches — répétition espacée</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect x='8' y='20' width='84' height='60' rx='6' fill='white' stroke='%231F2A44' stroke-width='5'/><line x1='26' y1='20' x2='26' y2='80' stroke='%23E4573D' stroke-width='4'/><line x1='34' y1='42' x2='84' y2='42' stroke='%23BFD3EC' stroke-width='4'/><line x1='34' y1='58' x2='72' y2='58' stroke='%23BFD3EC' stroke-width='4'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #FBF9F3;
+    --card: #FFFFFF;
+    --ink: #1F2A44;
+    --ink-soft: #6E7891;
+    --rule: #C7D8EE;
+    --margin: #E4573D;
+    --bic: #2B50C8;
+    --bic-dark: #1D3A9E;
+    --highlight: #FFE066;
+    --shadow: 0 2px 4px rgba(31, 42, 68, .07), 0 12px 28px rgba(31, 42, 68, .09);
+    --radius: 14px;
+    --font-display: "Bricolage Grotesque", system-ui, sans-serif;
+    --font-hand: "Caveat", cursive;
+    --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: var(--font-body);
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    touch-action: manipulation;          /* supprime le délai du double-tap sur iPad */
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px dashed var(--bic);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  .wrap {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: calc(24px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right))
+             calc(80px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  }
+
+  /* ---------- Header ---------- */
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 8px 0 28px;
+  }
+  .logo {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: -0.5px;
+  }
+  .logo .accent {
+    background: linear-gradient(transparent 55%, var(--highlight) 55%, var(--highlight) 92%, transparent 92%);
+  }
+  .tagline { color: var(--ink-soft); font-size: 14px; }
+
+  /* ---------- Vues ---------- */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 24px;
+    letter-spacing: -0.3px;
+  }
+
+  .view-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+  }
+
+  .due-summary { color: var(--ink-soft); font-size: 15px; margin-bottom: 24px; }
+  .due-summary strong { color: var(--margin); font-weight: 600; }
+
+  /* ---------- Boutons ---------- */
+  .btn {
+    border: none;
+    border-radius: 10px;
+    padding: 10px 18px;
+    font-weight: 600;
+    font-size: 15px;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary {
+    background: var(--bic);
+    color: #fff;
+    box-shadow: 0 3px 0 var(--bic-dark);
+  }
+  .btn-primary:hover { background: var(--bic-dark); }
+  .btn-ghost {
+    background: transparent;
+    color: var(--ink);
+    border: 1.5px solid rgba(31, 42, 68, .25);
+  }
+  .btn-ghost:hover { border-color: var(--ink); }
+  .btn-danger-soft {
+    background: transparent;
+    color: var(--margin);
+    border: 1.5px solid transparent;
+  }
+  .btn-danger-soft:hover { border-color: var(--margin); }
+  .btn-sm { padding: 6px 12px; font-size: 13.5px; border-radius: 8px; }
+
+  /* ---------- Grille des paquets ---------- */
+  .deck-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 18px;
+  }
+  .deck-tile {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    position: relative;
+    border-top: 5px solid var(--rule);
+  }
+  .deck-tile.has-due { border-top-color: var(--margin); }
+  .deck-tile h2 {
+    font-family: var(--font-display);
+    font-size: 19px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    overflow-wrap: anywhere;
+  }
+  .deck-meta { color: var(--ink-soft); font-size: 14px; }
+  .deck-meta .due-badge {
+    display: inline-block;
+    background: var(--highlight);
+    color: var(--ink);
+    font-weight: 600;
+    border-radius: 20px;
+    padding: 1px 10px;
+    margin-left: 6px;
+  }
+  .deck-actions { display: flex; gap: 8px; margin-top: auto; }
+
+  .new-deck-tile {
+    border: 2px dashed rgba(31, 42, 68, .25);
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--ink-soft);
+    font-weight: 600;
+    font-size: 15px;
+    min-height: 130px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .12s, color .12s;
+  }
+  .new-deck-tile:hover { border-color: var(--bic); color: var(--bic); }
+
+  .tools {
+    margin-top: 36px;
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+  .tools button {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    text-decoration: underline;
+    font-size: 13.5px;
+  }
+  .tools button:hover { color: var(--bic); }
+
+  /* ---------- Vue paquet ---------- */
+  .back-link {
+    background: none;
+    border: none;
+    color: var(--bic);
+    font-weight: 600;
+    font-size: 14.5px;
+    padding: 0;
+    margin-bottom: 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .back-link:hover { text-decoration: underline; }
+
+  .deck-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+  .deck-title-row input {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 24px;
+    border: none;
+    border-bottom: 2px dashed transparent;
+    background: transparent;
+    color: var(--ink);
+    max-width: 100%;
+    padding: 2px 0;
+  }
+  .deck-title-row input:hover, .deck-title-row input:focus {
+    border-bottom-color: var(--rule);
+    outline: none;
+  }
+
+  .add-form {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    display: grid;
+    grid-template-columns: 1fr 1fr auto;
+    gap: 12px;
+    margin-bottom: 26px;
+  }
+  .add-form label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-soft);
+    margin-bottom: 5px;
+  }
+  .add-form input[type="text"] {
+    width: 100%;
+    border: 1.5px solid rgba(31, 42, 68, .2);
+    border-radius: 8px;
+    padding: 9px 12px;
+    font: inherit;
+    color: var(--ink);
+    background: var(--paper);
+  }
+  .add-form input[type="text"]:focus {
+    outline: none;
+    border-color: var(--bic);
+  }
+  .add-form .btn { align-self: end; }
+
+  .card-list { display: flex; flex-direction: column; gap: 10px; }
+  .card-row {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(31, 42, 68, .08);
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .card-row .faces { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card-row .face { overflow-wrap: anywhere; }
+  .card-row .face.verso { color: var(--ink-soft); }
+  .card-row .face small {
+    display: block;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .07em;
+    color: var(--ink-soft);
+    opacity: .7;
+  }
+  .boxes { display: flex; gap: 3px; flex-shrink: 0; }
+  .boxes i {
+    width: 8px; height: 8px;
+    border-radius: 2px;
+    background: rgba(31, 42, 68, .12);
+  }
+  .boxes i.on { background: var(--bic); }
+  .row-actions { display: flex; gap: 4px; flex-shrink: 0; }
+  .icon-btn {
+    background: none;
+    border: none;
+    font-size: 15px;
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--ink-soft);
+  }
+  .icon-btn:hover { background: var(--paper); color: var(--ink); }
+
+  .edit-inputs { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .edit-inputs input {
+    border: 1.5px solid var(--bic);
+    border-radius: 8px;
+    padding: 7px 10px;
+    font: inherit;
+    width: 100%;
+  }
+
+  .empty-state {
+    text-align: center;
+    color: var(--ink-soft);
+    padding: 40px 20px;
+    font-size: 15px;
+  }
+  .empty-state .hand {
+    font-family: var(--font-hand);
+    font-size: 26px;
+    color: var(--ink);
+    display: block;
+    margin-bottom: 6px;
+  }
+
+  /* ---------- Vue révision : la fiche bristol ---------- */
+  .study-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .study-progress { font-size: 14px; color: var(--ink-soft); }
+  .study-progress strong { color: var(--ink); }
+
+  .progress-track {
+    height: 5px;
+    background: rgba(31, 42, 68, .1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 36px;
+  }
+  .progress-fill {
+    height: 100%;
+    background: var(--bic);
+    border-radius: 3px;
+    width: 0%;
+    transition: width .3s ease;
+  }
+
+  .fiche-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 30px;
+  }
+
+  .fiche-stack { position: relative; width: min(580px, 100%); }
+  /* cartes fantômes derrière la pile */
+  .fiche-stack::before, .fiche-stack::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(31, 42, 68, .1);
+    z-index: 0;
+  }
+  .fiche-stack::before { transform: rotate(1.6deg) translateY(5px); }
+  .fiche-stack::after  { transform: rotate(-2.1deg) translateY(3px); }
+  .fiche-stack.last-card::before, .fiche-stack.last-card::after { display: none; }
+
+  .fiche-flip {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    height: 320px;
+    perspective: 1400px;
+    border: none;
+    background: transparent;
+    padding: 0;
+    display: block;
+    text-align: left;
+  }
+  .fiche-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .5s cubic-bezier(.2, .7, .25, 1);
+    transform: rotate(-0.8deg);
+  }
+  .fiche-flip.flipped .fiche-inner { transform: rotate(-0.8deg) rotateY(180deg); }
+
+  .fiche-face {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    /* réglure bristol : lignes bleues */
+    background:
+      linear-gradient(to right, transparent 46px, var(--margin) 46px, var(--margin) 48px, transparent 48px),
+      repeating-linear-gradient(to bottom, var(--card) 0px, var(--card) 30px, var(--rule) 30px, var(--rule) 31px),
+      var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 34px 34px 34px 68px;
+    overflow: auto;
+  }
+  .fiche-face.back { transform: rotateY(180deg); }
+
+  .fiche-text {
+    font-family: var(--font-hand);
+    font-weight: 600;
+    font-size: clamp(28px, 5vw, 40px);
+    line-height: 1.25;
+    color: var(--ink);
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  .fiche-face.back .fiche-text { color: var(--bic-dark); }
+
+  .fiche-corner {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--ink-soft);
+    opacity: .65;
+  }
+
+  .flip-hint { color: var(--ink-soft); font-size: 13.5px; }
+  kbd {
+    background: var(--card);
+    border: 1px solid rgba(31, 42, 68, .2);
+    border-bottom-width: 2.5px;
+    border-radius: 5px;
+    padding: 1px 7px;
+    font-family: inherit;
+    font-size: 12px;
+  }
+
+  .answer-btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+  .btn-wrong {
+    background: #fff;
+    color: var(--margin);
+    border: 2px solid var(--margin);
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .btn-wrong:hover { background: var(--margin); color: #fff; }
+  .btn-right {
+    background: var(--bic);
+    color: #fff;
+    border: 2px solid var(--bic);
+    border-radius: 10px;
+    padding: 12px 24px;
+    font-weight: 700;
+    font-size: 16px;
+    box-shadow: 0 3px 0 var(--bic-dark);
+  }
+  .btn-right:hover { background: var(--bic-dark); border-color: var(--bic-dark); }
+
+  /* ---------- Fin de session ---------- */
+  .session-end { text-align: center; padding: 50px 20px; }
+  .session-end .hand {
+    font-family: var(--font-hand);
+    font-size: 44px;
+    font-weight: 600;
+    display: block;
+    margin-bottom: 10px;
+  }
+  .session-end .hand .accent {
+    background: linear-gradient(transparent 55%, var(--highlight) 55%, var(--highlight) 92%, transparent 92%);
+  }
+  .session-end p { color: var(--ink-soft); margin-bottom: 28px; }
+  .session-end p strong { color: var(--ink); }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    opacity: 0;
+    transition: transform .25s ease, opacity .25s ease;
+    pointer-events: none;
+    z-index: 50;
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+  /* ---------- Responsive ---------- */
+  @media (max-width: 640px) {
+    .add-form { grid-template-columns: 1fr; }
+    .card-row .faces { grid-template-columns: 1fr; gap: 4px; }
+    .fiche-flip { height: 260px; }
+    .fiche-face { padding: 24px 24px 24px 58px; }
+  }
+
+  /* ---------- Tactile (iPad, mobile) ---------- */
+  @media (hover: none) {
+    /* pas de clavier physique : on masque les raccourcis et le texte adapté prend le relais */
+    kbd, .hint-desktop { display: none; }
+    .hint-touch { display: inline; }
+    .icon-btn { font-size: 18px; padding: 10px 12px; }
+    .btn-wrong, .btn-right { padding: 15px 30px; font-size: 17px; }
+    .card-row { padding: 14px 16px; }
+  }
+  .hint-touch { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .fiche-inner, .progress-fill, #toast, .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo"><span class="accent">Fiches</span></div>
+    <div class="tagline">Répétition espacée, façon fiches bristol</div>
+  </header>
+
+  <!-- ========== VUE ACCUEIL ========== -->
+  <section id="view-home" class="view active">
+    <div class="view-head">
+      <h1>Mes paquets</h1>
+    </div>
+    <p class="due-summary" id="due-summary"></p>
+    <div class="deck-grid" id="deck-grid"></div>
+    <div class="tools">
+      <span>Vos données restent dans ce navigateur.</span>
+      <button id="btn-export" type="button">Exporter</button>
+      <button id="btn-import" type="button">Importer</button>
+      <input type="file" id="import-file" accept=".json,.csv,application/json,text/csv" hidden>
+    </div>
+  </section>
+
+  <!-- ========== VUE PAQUET ========== -->
+  <section id="view-deck" class="view">
+    <button class="back-link" data-nav="home" type="button">← Mes paquets</button>
+    <div class="deck-title-row">
+      <input id="deck-name-input" type="text" aria-label="Nom du paquet" maxlength="60">
+      <button class="btn btn-primary btn-sm" id="btn-study-from-deck" type="button">Réviser</button>
+      <button class="btn btn-danger-soft btn-sm" id="btn-delete-deck" type="button">Supprimer le paquet</button>
+    </div>
+
+    <form class="add-form" id="add-form">
+      <div>
+        <label for="input-recto">Recto — la question</label>
+        <input type="text" id="input-recto" placeholder="ex. « to gather »" autocomplete="off" maxlength="300">
+      </div>
+      <div>
+        <label for="input-verso">Verso — la réponse</label>
+        <input type="text" id="input-verso" placeholder="ex. « rassembler »" autocomplete="off" maxlength="300">
+      </div>
+      <button class="btn btn-primary" type="submit">Ajouter la carte</button>
+    </form>
+
+    <div class="card-list" id="card-list"></div>
+  </section>
+
+  <!-- ========== VUE RÉVISION ========== -->
+  <section id="view-study" class="view">
+    <button class="back-link" data-nav="home" type="button">← Quitter la session</button>
+
+    <div id="study-active">
+      <div class="study-head">
+        <h1 id="study-deck-name" style="font-size:19px"></h1>
+        <span class="study-progress">Encore <strong id="study-remaining">0</strong> carte(s)</span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+
+      <div class="fiche-zone">
+        <div class="fiche-stack" id="fiche-stack">
+          <button class="fiche-flip" id="fiche-flip" type="button" aria-label="Retourner la fiche">
+            <div class="fiche-inner">
+              <div class="fiche-face front">
+                <span class="fiche-corner">Recto</span>
+                <div class="fiche-text" id="fiche-front-text"></div>
+              </div>
+              <div class="fiche-face back">
+                <span class="fiche-corner">Verso</span>
+                <div class="fiche-text" id="fiche-back-text"></div>
+              </div>
+            </div>
+          </button>
+        </div>
+
+        <p class="flip-hint" id="flip-hint"><span class="hint-desktop">Cliquez sur la fiche ou appuyez sur <kbd>Espace</kbd> pour la retourner</span><span class="hint-touch">Touchez la fiche pour la retourner</span></p>
+
+        <div class="answer-btns" id="answer-btns">
+          <button class="btn-wrong" id="btn-wrong" type="button">À revoir <kbd>1</kbd></button>
+          <button class="btn-right" id="btn-right" type="button">Je savais <kbd>2</kbd></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="study-end" class="session-end" hidden>
+      <span class="hand">Session <span class="accent">terminée</span> !</span>
+      <p id="end-stats"></p>
+      <button class="btn btn-primary" data-nav="home" type="button">Retour aux paquets</button>
+    </div>
+  </section>
+
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(() => {
+  "use strict";
+
+  /* ---------- Données ---------- */
+  const STORE_KEY = "fiches-app-v1";
+  const DAY = 24 * 60 * 60 * 1000;
+  // Intervalle (en jours) appliqué APRÈS une bonne réponse, selon la nouvelle boîte
+  const INTERVALS = { 1: 0, 2: 1, 3: 3, 4: 7, 5: 15 };
+
+  const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+  function seedData() {
+    return {
+      decks: [{
+        id: uid(),
+        name: "Anglais · Vocabulaire",
+        cards: [
+          ["to gather", "rassembler"],
+          ["a landmark", "un point de repère"],
+          ["reliable", "fiable"],
+          ["to withdraw", "retirer / se retirer"],
+          ["an outcome", "un résultat"],
+          ["seamless", "fluide, sans accroc"],
+        ].map(([r, v]) => ({ id: uid(), recto: r, verso: v, box: 1, due: Date.now() })),
+      }],
+    };
+  }
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) { /* données illisibles : on repart de zéro */ }
+    const data = seedData();
+    localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    return data;
+  }
+
+  function save() {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+  }
+
+  const state = load();
+
+  const endOfToday = () => {
+    const d = new Date();
+    d.setHours(23, 59, 59, 999);
+    return d.getTime();
+  };
+
+  const dueCards = (deck) => deck.cards.filter(c => c.due <= endOfToday());
+
+  /* ---------- Helpers DOM ---------- */
+  const $ = (sel) => document.querySelector(sel);
+  const el = (tag, cls, text) => {
+    const n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined) n.textContent = text;
+    return n;
+  };
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $("#toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove("show"), 2200);
+  }
+
+  /* ---------- Navigation ---------- */
+  let currentDeckId = null;
+
+  function show(viewName) {
+    document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+    $("#view-" + viewName).classList.add("active");
+    window.scrollTo(0, 0);
+  }
+
+  document.querySelectorAll("[data-nav='home']").forEach(b =>
+    b.addEventListener("click", () => { renderHome(); show("home"); })
+  );
+
+  /* ---------- Accueil ---------- */
+  function renderHome() {
+    const grid = $("#deck-grid");
+    grid.innerHTML = "";
+
+    const totalDue = state.decks.reduce((n, d) => n + dueCards(d).length, 0);
+    $("#due-summary").innerHTML = totalDue > 0
+      ? `<strong>${totalDue} carte${totalDue > 1 ? "s" : ""}</strong> à réviser aujourd'hui`
+      : "Rien à réviser pour le moment — tout est à jour.";
+
+    for (const deck of state.decks) {
+      const due = dueCards(deck).length;
+      const tile = el("div", "deck-tile" + (due ? " has-due" : ""));
+
+      tile.appendChild(el("h2", "", deck.name));
+
+      const meta = el("div", "deck-meta", `${deck.cards.length} carte${deck.cards.length > 1 ? "s" : ""}`);
+      if (due) {
+        const badge = el("span", "due-badge", `${due} à réviser`);
+        meta.appendChild(badge);
+      }
+      tile.appendChild(meta);
+
+      const actions = el("div", "deck-actions");
+      const btnStudy = el("button", due ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm", "Réviser");
+      btnStudy.type = "button";
+      btnStudy.addEventListener("click", () => startStudy(deck.id));
+      const btnManage = el("button", "btn btn-ghost btn-sm", "Gérer");
+      btnManage.type = "button";
+      btnManage.addEventListener("click", () => openDeck(deck.id));
+      actions.append(btnStudy, btnManage);
+      tile.appendChild(actions);
+
+      grid.appendChild(tile);
+    }
+
+    const newTile = el("button", "new-deck-tile", "+ Nouveau paquet");
+    newTile.type = "button";
+    newTile.addEventListener("click", createDeck);
+    grid.appendChild(newTile);
+  }
+
+  function createDeck() {
+    const deck = { id: uid(), name: "Nouveau paquet", cards: [] };
+    state.decks.push(deck);
+    save();
+    openDeck(deck.id);
+    $("#deck-name-input").select();
+  }
+
+  /* ---------- Vue paquet ---------- */
+  function getDeck(id) { return state.decks.find(d => d.id === id); }
+
+  function openDeck(id) {
+    currentDeckId = id;
+    const deck = getDeck(id);
+    $("#deck-name-input").value = deck.name;
+    renderCardList();
+    show("deck");
+    $("#input-recto").focus();
+  }
+
+  $("#deck-name-input").addEventListener("change", (e) => {
+    const deck = getDeck(currentDeckId);
+    const name = e.target.value.trim();
+    if (name) { deck.name = name; save(); }
+    else e.target.value = deck.name;
+  });
+
+  let deleteArmed = false;
+  $("#btn-delete-deck").addEventListener("click", (e) => {
+    if (!deleteArmed) {
+      deleteArmed = true;
+      e.target.textContent = "Confirmer la suppression ?";
+      setTimeout(() => {
+        deleteArmed = false;
+        e.target.textContent = "Supprimer le paquet";
+      }, 3000);
+      return;
+    }
+    state.decks = state.decks.filter(d => d.id !== currentDeckId);
+    save();
+    deleteArmed = false;
+    e.target.textContent = "Supprimer le paquet";
+    toast("Paquet supprimé");
+    renderHome();
+    show("home");
+  });
+
+  $("#btn-study-from-deck").addEventListener("click", () => startStudy(currentDeckId));
+
+  $("#add-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const recto = $("#input-recto").value.trim();
+    const verso = $("#input-verso").value.trim();
+    if (!recto || !verso) { toast("Remplissez le recto et le verso"); return; }
+    const deck = getDeck(currentDeckId);
+    deck.cards.unshift({ id: uid(), recto, verso, box: 1, due: Date.now() });
+    save();
+    $("#input-recto").value = "";
+    $("#input-verso").value = "";
+    $("#input-recto").focus();
+    renderCardList();
+  });
+
+  function renderCardList() {
+    const deck = getDeck(currentDeckId);
+    const list = $("#card-list");
+    list.innerHTML = "";
+
+    if (deck.cards.length === 0) {
+      const empty = el("div", "empty-state");
+      empty.appendChild(el("span", "hand", "Une fiche vierge n'a jamais rien appris à personne…"));
+      empty.appendChild(document.createTextNode("Ajoutez votre première carte avec le formulaire ci-dessus."));
+      list.appendChild(empty);
+      return;
+    }
+
+    for (const card of deck.cards) {
+      list.appendChild(cardRow(deck, card));
+    }
+  }
+
+  function cardRow(deck, card) {
+    const row = el("div", "card-row");
+
+    const faces = el("div", "faces");
+    const f1 = el("div", "face recto");
+    f1.appendChild(el("small", "", "Recto"));
+    f1.appendChild(document.createTextNode(card.recto));
+    const f2 = el("div", "face verso");
+    f2.appendChild(el("small", "", "Verso"));
+    f2.appendChild(document.createTextNode(card.verso));
+    faces.append(f1, f2);
+    row.appendChild(faces);
+
+    const boxes = el("div", "boxes");
+    boxes.title = `Boîte ${card.box} sur 5 — plus la boîte est haute, plus la carte revient rarement`;
+    for (let i = 1; i <= 5; i++) {
+      boxes.appendChild(el("i", i <= card.box ? "on" : ""));
+    }
+    row.appendChild(boxes);
+
+    const actions = el("div", "row-actions");
+    const btnEdit = el("button", "icon-btn", "✎");
+    btnEdit.type = "button";
+    btnEdit.setAttribute("aria-label", "Modifier la carte");
+    btnEdit.addEventListener("click", () => editCardRow(row, deck, card));
+    const btnDel = el("button", "icon-btn", "✕");
+    btnDel.type = "button";
+    btnDel.setAttribute("aria-label", "Supprimer la carte");
+    btnDel.addEventListener("click", () => {
+      if (btnDel.dataset.armed) {
+        deck.cards = deck.cards.filter(c => c.id !== card.id);
+        save();
+        renderCardList();
+      } else {
+        btnDel.dataset.armed = "1";
+        btnDel.textContent = "Sûr ?";
+        btnDel.style.color = "var(--margin)";
+        setTimeout(() => {
+          delete btnDel.dataset.armed;
+          btnDel.textContent = "✕";
+          btnDel.style.color = "";
+        }, 2500);
+      }
+    });
+    actions.append(btnEdit, btnDel);
+    row.appendChild(actions);
+
+    return row;
+  }
+
+  function editCardRow(row, deck, card) {
+    row.innerHTML = "";
+    const inputs = el("div", "edit-inputs");
+    const iR = el("input");
+    iR.value = card.recto;
+    iR.maxLength = 300;
+    const iV = el("input");
+    iV.value = card.verso;
+    iV.maxLength = 300;
+    inputs.append(iR, iV);
+    row.appendChild(inputs);
+
+    const actions = el("div", "row-actions");
+    const ok = el("button", "btn btn-primary btn-sm", "Enregistrer");
+    ok.type = "button";
+    const cancel = el("button", "btn btn-ghost btn-sm", "Annuler");
+    cancel.type = "button";
+    actions.append(ok, cancel);
+    row.appendChild(actions);
+
+    const commit = () => {
+      const r = iR.value.trim(), v = iV.value.trim();
+      if (r && v) { card.recto = r; card.verso = v; save(); }
+      renderCardList();
+    };
+    ok.addEventListener("click", commit);
+    cancel.addEventListener("click", renderCardList);
+    inputs.addEventListener("keydown", (e) => { if (e.key === "Enter") commit(); });
+    iR.focus();
+  }
+
+  /* ---------- Révision ---------- */
+  const study = { deckId: null, queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0 };
+
+  function shuffle(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }
+
+  function startStudy(deckId) {
+    const deck = getDeck(deckId);
+    if (deck.cards.length === 0) {
+      toast("Ce paquet n'a pas encore de carte");
+      openDeck(deckId);
+      return;
+    }
+    let pool = dueCards(deck);
+    let ahead = false;
+    if (pool.length === 0) { pool = deck.cards.slice(); ahead = true; }
+
+    study.deckId = deckId;
+    study.queue = shuffle(pool.slice());
+    study.total = pool.length;
+    study.done = 0;
+    study.right = 0;
+    study.wrong = 0;
+
+    $("#study-deck-name").textContent = deck.name + (ahead ? " · révision en avance" : "");
+    $("#study-active").hidden = false;
+    $("#study-end").hidden = true;
+    show("study");
+    nextCard();
+  }
+
+  function nextCard() {
+    const flip = $("#fiche-flip");
+    flip.classList.remove("flipped");
+    $("#flip-hint").hidden = false;
+
+    if (study.queue.length === 0) { endSession(); return; }
+
+    study.current = study.queue[0];
+    $("#fiche-stack").classList.toggle("last-card", study.queue.length === 1);
+    $("#study-remaining").textContent = study.queue.length;
+    const pct = study.total ? Math.round((study.done / study.total) * 100) : 0;
+    $("#progress-fill").style.width = pct + "%";
+
+    // On attend la fin de l'animation de retour avant d'afficher le nouveau texte
+    setTimeout(() => {
+      $("#fiche-front-text").textContent = study.current.recto;
+      $("#fiche-back-text").textContent = study.current.verso;
+    }, prefersReducedMotion() ? 0 : 160);
+  }
+
+  function prefersReducedMotion() {
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  }
+
+  function flipCard() {
+    const flip = $("#fiche-flip");
+    flip.classList.toggle("flipped");
+    $("#flip-hint").hidden = true;
+  }
+
+  function answer(known) {
+    const card = study.current;
+    study.queue.shift();
+
+    if (known) {
+      card.box = Math.min(card.box + 1, 5);
+      card.due = Date.now() + INTERVALS[card.box] * DAY;
+      // Boîte 1→2 minimum 1 jour ; si l'intervalle est 0 la carte resterait due : on force demain
+      if (INTERVALS[card.box] === 0) card.due = endOfToday() + 1;
+      study.right++;
+      study.done++;
+    } else {
+      card.box = 1;
+      card.due = Date.now();
+      study.wrong++;
+      study.queue.push(card);   // elle repassera en fin de session
+      study.total++;
+    }
+    save();
+    nextCard();
+  }
+
+  $("#fiche-flip").addEventListener("click", flipCard);
+  $("#btn-wrong").addEventListener("click", () => answer(false));
+  $("#btn-right").addEventListener("click", () => answer(true));
+
+  function endSession() {
+    $("#progress-fill").style.width = "100%";
+    $("#study-active").hidden = true;
+    const end = $("#study-end");
+    end.hidden = false;
+    const total = study.right + study.wrong;
+    $("#end-stats").innerHTML =
+      `<strong>${study.right}</strong> réussite${study.right > 1 ? "s" : ""} et ` +
+      `<strong>${study.wrong}</strong> oubli${study.wrong > 1 ? "s" : ""} sur ${total} réponse${total > 1 ? "s" : ""}. ` +
+      `Les cartes réussies reviendront plus tard, automatiquement.`;
+  }
+
+  /* ---------- Clavier ---------- */
+  document.addEventListener("keydown", (e) => {
+    if (!$("#view-study").classList.contains("active") || !$("#study-end").hidden) return;
+    if (e.target.tagName === "INPUT") return;
+    if (e.code === "Space" || e.key === "Enter") {
+      e.preventDefault();
+      flipCard();
+    } else if (e.key === "1") {
+      answer(false);
+    } else if (e.key === "2") {
+      answer(true);
+    }
+  });
+
+  /* ---------- Export / import ---------- */
+  $("#btn-export").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "fiches-export.json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  });
+
+  $("#btn-import").addEventListener("click", () => $("#import-file").click());
+  $("#import-file").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const text = await file.text();
+    if (file.name.toLowerCase().endsWith(".csv")) importCSV(file.name, text);
+    else importJSON(text);
+    e.target.value = "";
+  });
+
+  function importJSON(text) {
+    try {
+      const data = JSON.parse(text);
+      if (!Array.isArray(data.decks)) throw new Error("format");
+      let added = 0;
+      for (const d of data.decks) {
+        if (typeof d.name !== "string" || !Array.isArray(d.cards)) continue;
+        state.decks.push({
+          id: uid(),
+          name: d.name,
+          cards: d.cards
+            .filter(c => typeof c.recto === "string" && typeof c.verso === "string")
+            .map(c => ({
+              id: uid(),
+              recto: c.recto,
+              verso: c.verso,
+              box: Number.isInteger(c.box) && c.box >= 1 && c.box <= 5 ? c.box : 1,
+              due: typeof c.due === "number" ? c.due : Date.now(),
+            })),
+        });
+        added++;
+      }
+      save();
+      renderHome();
+      toast(added ? `${added} paquet${added > 1 ? "s" : ""} importé${added > 1 ? "s" : ""}` : "Aucun paquet valide dans ce fichier");
+    } catch {
+      toast("Fichier illisible — attendu : un export de Fiches ou un CSV");
+    }
+  }
+
+  /* CSV : une carte par ligne, « recto;verso » ou « recto,verso » (guillemets acceptés) */
+  function importCSV(fileName, text) {
+    const lines = text.replace(/^﻿/, "").split(/\r\n|\n|\r/).filter(l => l.trim() !== "");
+    if (lines.length === 0) { toast("Ce fichier CSV est vide"); return; }
+
+    // Détection du séparateur le plus fréquent sur la première ligne : ; , ou tabulation
+    const first = lines[0];
+    const sep = [";", ",", "\t"]
+      .map(s => [s, first.split(s).length])
+      .sort((a, b) => b[1] - a[1])[0][0];
+
+    const parseLine = (line) => {
+      const cells = [];
+      let cur = "", inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"' && line[i + 1] === '"') { cur += '"'; i++; }
+          else if (ch === '"') inQuotes = false;
+          else cur += ch;
+        } else if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === sep) {
+          cells.push(cur); cur = "";
+        } else {
+          cur += ch;
+        }
+      }
+      cells.push(cur);
+      return cells.map(c => c.trim());
+    };
+
+    let rows = lines.map(parseLine).filter(r => r[0] && r[1]);
+
+    // On saute la ligne d'en-tête si elle ressemble à des noms de colonnes
+    const header = /^(recto|verso|question|r[ée]ponse|front|back|term|definition)$/i;
+    if (rows.length && header.test(rows[0][0]) && header.test(rows[0][1])) rows = rows.slice(1);
+
+    if (rows.length === 0) {
+      toast("Aucune carte trouvée — attendu : une ligne « recto;verso » par carte");
+      return;
+    }
+
+    state.decks.push({
+      id: uid(),
+      name: fileName.replace(/\.csv$/i, "").slice(0, 60) || "Import CSV",
+      cards: rows.map(r => ({ id: uid(), recto: r[0], verso: r[1], box: 1, due: Date.now() })),
+    });
+    save();
+    renderHome();
+    toast(`${rows.length} carte${rows.length > 1 ? "s" : ""} importée${rows.length > 1 ? "s" : ""} dans « ${fileName.replace(/\.csv$/i, "")} »`);
+  }
+
+  /* ---------- Démarrage ---------- */
+  renderHome();
+})();
+</script>
+</body>
+</html>
