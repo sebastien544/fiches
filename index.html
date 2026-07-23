@@ -487,6 +487,21 @@
   }
 
   .answer-btns { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+
+  .study-back {
+    background: none;
+    border: none;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .study-back:hover { color: var(--bic); }
+  .study-back[hidden] { display: none; }
   .btn-wrong {
     background: #fff;
     color: var(--margin);
@@ -652,6 +667,8 @@
           <button class="btn-wrong" id="btn-wrong" type="button">À revoir <kbd>1</kbd></button>
           <button class="btn-right" id="btn-right" type="button">Je savais <kbd>2</kbd></button>
         </div>
+
+        <button class="study-back" id="btn-undo" type="button" hidden>← Revenir à la carte précédente<span class="hint-desktop"> <kbd>←</kbd></span></button>
       </div>
     </div>
 
@@ -659,6 +676,7 @@
       <span class="hand">Session <span class="accent">terminée</span> !</span>
       <p id="end-stats"></p>
       <button class="btn btn-primary" data-nav="home" type="button">Retour aux paquets</button>
+      <button class="btn btn-ghost btn-sm" id="btn-undo-end" type="button" style="margin-left:10px" hidden>← Revenir à la dernière carte</button>
     </div>
   </section>
 
@@ -958,6 +976,7 @@
 
   /* ---------- Révision ---------- */
   const study = { deckId: null, queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0 };
+  let history = [];   // pile d'états pour annuler la dernière réponse
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -984,6 +1003,7 @@
     study.done = 0;
     study.right = 0;
     study.wrong = 0;
+    history = [];
 
     $("#study-deck-name").textContent = deck.name + (ahead ? " · révision en avance" : "");
     $("#study-active").hidden = false;
@@ -996,6 +1016,7 @@
     const flip = $("#fiche-flip");
     flip.classList.remove("flipped");
     $("#flip-hint").hidden = false;
+    updateUndoBtn();
 
     if (study.queue.length === 0) { endSession(); return; }
 
@@ -1036,6 +1057,19 @@
 
   function answer(known) {
     const card = study.current;
+
+    // On mémorise l'état AVANT de modifier quoi que ce soit, pour pouvoir annuler
+    history.push({
+      card,
+      box: card.box,
+      due: card.due,
+      queue: study.queue.slice(),
+      done: study.done,
+      right: study.right,
+      wrong: study.wrong,
+      total: study.total,
+    });
+
     study.queue.shift();
 
     if (known) {
@@ -1056,15 +1090,43 @@
     nextCard();
   }
 
+  function undoAnswer() {
+    if (history.length === 0) return;
+    const s = history.pop();
+    s.card.box = s.box;
+    s.card.due = s.due;
+    study.queue = s.queue;
+    study.done = s.done;
+    study.right = s.right;
+    study.wrong = s.wrong;
+    study.total = s.total;
+    study.current = study.queue[0];
+    save();
+    // si on était sur l'écran de fin, on revient à la révision
+    $("#study-end").hidden = true;
+    $("#study-active").hidden = false;
+    nextCard();
+    toast("Réponse annulée");
+  }
+
+  function updateUndoBtn() {
+    const has = history.length > 0;
+    $("#btn-undo").hidden = !has;
+    $("#btn-undo-end").hidden = !has;
+  }
+
   $("#fiche-flip").addEventListener("click", flipCard);
   $("#btn-wrong").addEventListener("click", () => answer(false));
   $("#btn-right").addEventListener("click", () => answer(true));
+  $("#btn-undo").addEventListener("click", undoAnswer);
+  $("#btn-undo-end").addEventListener("click", undoAnswer);
 
   function endSession() {
     $("#progress-fill").style.width = "100%";
     $("#study-active").hidden = true;
     const end = $("#study-end");
     end.hidden = false;
+    updateUndoBtn();
     const total = study.right + study.wrong;
     $("#end-stats").innerHTML =
       `<strong>${study.right}</strong> réussite${study.right > 1 ? "s" : ""} et ` +
@@ -1074,8 +1136,18 @@
 
   /* ---------- Clavier ---------- */
   document.addEventListener("keydown", (e) => {
-    if (!$("#view-study").classList.contains("active") || !$("#study-end").hidden) return;
+    if (!$("#view-study").classList.contains("active")) return;
     if (e.target.tagName === "INPUT") return;
+
+    // Annuler la dernière réponse : possible même sur l'écran de fin
+    if (e.key === "ArrowLeft" || e.key === "Backspace") {
+      e.preventDefault();
+      undoAnswer();
+      return;
+    }
+
+    // Les autres raccourcis n'ont de sens que pendant la révision active
+    if (!$("#study-end").hidden) return;
     if (e.code === "Space" || e.key === "Enter") {
       e.preventDefault();
       flipCard();
