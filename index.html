@@ -186,6 +186,29 @@
   }
   .new-deck-tile:hover { border-color: var(--bic); color: var(--bic); }
 
+  /* ---------- Paquets prêts à l'emploi ---------- */
+  .catalog-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.2px;
+    margin: 40px 0 14px;
+  }
+  .catalog-list { display: flex; flex-direction: column; gap: 10px; }
+  .catalog-row {
+    background: var(--card);
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgba(31, 42, 68, .08);
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+  .catalog-row .info { flex: 1; min-width: 200px; }
+  .catalog-row .info strong { font-size: 15.5px; }
+  .catalog-row .info span { display: block; color: var(--ink-soft); font-size: 13.5px; }
+
   .tools {
     margin-top: 36px;
     display: flex;
@@ -549,6 +572,12 @@
     </div>
     <p class="due-summary" id="due-summary"></p>
     <div class="deck-grid" id="deck-grid"></div>
+
+    <div id="catalog-section" hidden>
+      <h2 class="catalog-title">Paquets prêts à l'emploi</h2>
+      <div class="catalog-list" id="catalog-list"></div>
+    </div>
+
     <div class="tools">
       <span>Vos données restent dans ce navigateur.</span>
       <button id="btn-export" type="button">Exporter</button>
@@ -752,6 +781,8 @@
     newTile.type = "button";
     newTile.addEventListener("click", createDeck);
     grid.appendChild(newTile);
+
+    renderCatalog();   // met à jour l'état « Déjà ajouté » du catalogue
   }
 
   function createDeck() {
@@ -1049,7 +1080,7 @@
     const file = e.target.files[0];
     if (!file) return;
     const text = await file.text();
-    if (file.name.toLowerCase().endsWith(".csv")) importCSV(file.name, text);
+    if (file.name.toLowerCase().endsWith(".csv")) importCSV(file.name.replace(/\.csv$/i, ""), text);
     else importJSON(text);
     e.target.value = "";
   });
@@ -1085,7 +1116,7 @@
   }
 
   /* CSV : une carte par ligne, « recto;verso » ou « recto,verso » (guillemets acceptés) */
-  function importCSV(fileName, text) {
+  function importCSV(deckName, text) {
     const lines = text.replace(/^﻿/, "").split(/\r\n|\n|\r/).filter(l => l.trim() !== "");
     if (lines.length === 0) { toast("Ce fichier CSV est vide"); return; }
 
@@ -1127,18 +1158,70 @@
       return;
     }
 
+    const name = deckName.slice(0, 60) || "Import CSV";
     state.decks.push({
       id: uid(),
-      name: fileName.replace(/\.csv$/i, "").slice(0, 60) || "Import CSV",
+      name,
       cards: rows.map(r => ({ id: uid(), recto: r[0], verso: r[1], box: 1, due: Date.now() })),
     });
     save();
     renderHome();
-    toast(`${rows.length} carte${rows.length > 1 ? "s" : ""} importée${rows.length > 1 ? "s" : ""} dans « ${fileName.replace(/\.csv$/i, "")} »`);
+    toast(`${rows.length} carte${rows.length > 1 ? "s" : ""} importée${rows.length > 1 ? "s" : ""} dans « ${name} »`);
+  }
+
+  /* ---------- Paquets prêts à l'emploi (catalogue hébergé avec l'app) ---------- */
+  let catalogData = [];
+
+  async function loadCatalog() {
+    try {
+      const res = await fetch("decks/catalog.json", { cache: "no-cache" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return;
+      catalogData = data;
+      renderCatalog();
+    } catch { /* hors ligne ou fichier ouvert en local : la section reste masquée */ }
+  }
+
+  function renderCatalog() {
+    if (catalogData.length === 0) return;
+    $("#catalog-section").hidden = false;
+    const list = $("#catalog-list");
+    list.innerHTML = "";
+    for (const item of catalogData) {
+      const row = el("div", "catalog-row");
+      const info = el("div", "info");
+      info.appendChild(el("strong", "", item.name));
+      if (item.desc) info.appendChild(el("span", "", item.desc));
+      row.appendChild(info);
+
+      const already = state.decks.some(d => d.name === item.name);
+      const btn = el("button", already ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm",
+                     already ? "Déjà ajouté" : "Ajouter");
+      btn.type = "button";
+      btn.disabled = already;
+      btn.addEventListener("click", async () => {
+        btn.disabled = true;
+        btn.textContent = "Ajout…";
+        try {
+          const res = await fetch("decks/" + item.file, { cache: "no-cache" });
+          if (!res.ok) throw new Error();
+          importCSV(item.name, await res.text());
+          renderCatalog();
+        } catch {
+          btn.disabled = false;
+          btn.textContent = "Ajouter";
+          toast("Impossible de télécharger ce paquet — vérifiez la connexion");
+        }
+      });
+      row.appendChild(btn);
+      list.appendChild(row);
+    }
   }
 
   /* ---------- Démarrage ---------- */
   renderHome();
+  loadCatalog();
 })();
 </script>
 </body>
