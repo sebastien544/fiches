@@ -463,6 +463,25 @@
     margin-top: 4px;
   }
 
+  /* coup de stabilo derrière la réponse : trait irrégulier, un peu transparent */
+  .fiche-mark {
+    background-image: linear-gradient(
+      98deg,
+      rgba(255, 224, 102, 0)   0.5%,
+      rgba(255, 224, 102, .95)   3%,
+      rgba(255, 224, 102, .70)  50%,
+      rgba(255, 224, 102, .92)  97%,
+      rgba(255, 224, 102, 0)  99.5%
+    );
+    background-repeat: no-repeat;
+    background-size: 100% 60%;      /* la bande ne couvre que le bas des lettres */
+    background-position: 0 82%;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;   /* chaque ligne reçoit son propre trait */
+    padding: 0 .14em;
+    border-radius: 2px;
+  }
+
   .fiche-corner {
     position: absolute;
     top: 12px;
@@ -1028,21 +1047,20 @@
 
     // On attend la fin de l'animation de retour avant d'afficher le nouveau texte
     setTimeout(() => {
-      setFicheText($("#fiche-front-text"), study.current.recto);
-      setFicheText($("#fiche-back-text"), study.current.verso);
+      setFicheText($("#fiche-front-text"), study.current.recto, false);
+      setFicheText($("#fiche-back-text"), study.current.verso, true);
     }, prefersReducedMotion() ? 0 : 160);
   }
 
   // « 水 みず (mizu) » → « 水 みず » puis « (mizu) » à la ligne, en plus petit
-  function setFicheText(node, text) {
+  function setFicheText(node, text, mark) {
     node.textContent = "";
     const m = text.match(/^(.*?)\s*(\(.+\))$/s);
-    if (m && m[1]) {
-      node.appendChild(document.createTextNode(m[1]));
-      node.appendChild(el("span", "fiche-sub", m[2]));
-    } else {
-      node.textContent = text;
-    }
+    const main = (m && m[1]) ? m[1] : text;
+    const sub = (m && m[1]) ? m[2] : null;
+    // le stabilo souligne le mot clé, jamais la partie entre parenthèses
+    node.appendChild(mark ? el("span", "fiche-mark", main) : document.createTextNode(main));
+    if (sub) node.appendChild(el("span", "fiche-sub", sub));
   }
 
   function prefersReducedMotion() {
