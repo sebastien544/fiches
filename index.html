@@ -106,8 +106,16 @@
     margin-bottom: 6px;
   }
 
-  .due-summary { color: var(--ink-soft); font-size: 15px; margin-bottom: 24px; }
+  .due-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+  }
+  .due-summary { color: var(--ink-soft); font-size: 15px; }
   .due-summary strong { color: var(--margin); font-weight: 600; }
+  #btn-study-all[hidden] { display: none; }
 
   /* ---------- Boutons ---------- */
   .btn {
@@ -695,7 +703,10 @@
     <div class="view-head">
       <h1>Mes paquets</h1>
     </div>
-    <p class="due-summary" id="due-summary"></p>
+    <div class="due-row">
+      <p class="due-summary" id="due-summary"></p>
+      <button class="btn btn-primary btn-sm" id="btn-study-all" type="button" hidden>Tout réviser</button>
+    </div>
     <div id="deck-sections"></div>
 
     <div id="catalog-section" hidden>
@@ -902,6 +913,7 @@
     $("#due-summary").innerHTML = totalDue > 0
       ? `<strong>${totalDue} carte${totalDue > 1 ? "s" : ""}</strong> à réviser aujourd'hui`
       : "Rien à réviser pour le moment — tout est à jour.";
+    $("#btn-study-all").hidden = totalDue === 0;   // rien à réviser : pas de bouton
 
     // regroupement par dossier, dans l'ordre d'apparition ; le vrac finit en bas
     const groups = new Map();
@@ -1050,6 +1062,7 @@
   });
 
   $("#btn-study-from-deck").addEventListener("click", () => startStudy(currentDeckId));
+  $("#btn-study-all").addEventListener("click", startStudyAll);
 
   $("#add-form").addEventListener("submit", (e) => {
     e.preventDefault();
@@ -1165,7 +1178,7 @@
   }
 
   /* ---------- Révision ---------- */
-  const study = { deckId: null, queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0 };
+  const study = { queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0 };
   let history = [];   // pile d'états pour annuler la dernière réponse
 
   function shuffle(arr) {
@@ -1187,7 +1200,21 @@
     let ahead = false;
     if (pool.length === 0) { pool = deck.cards.slice(); ahead = true; }
 
-    study.deckId = deckId;
+    beginSession(pool, fullName(deck) + (ahead ? " · révision en avance" : ""));
+  }
+
+  /* Révision globale : les cartes dues de tous les paquets, mélangées ensemble.
+     Les cartes sont des références aux objets des paquets, donc les réponses
+     mettent à jour le bon paquet sans avoir à savoir d'où vient la carte. */
+  function startStudyAll() {
+    const decks = state.decks.filter(d => dueCards(d).length > 0);
+    const pool = decks.flatMap(dueCards);
+    if (pool.length === 0) { toast("Rien à réviser aujourd'hui"); return; }
+
+    beginSession(pool, `Tous les paquets · ${decks.length} paquet${decks.length > 1 ? "s" : ""}`);
+  }
+
+  function beginSession(pool, title) {
     study.queue = shuffle(pool.slice());
     study.total = pool.length;
     study.done = 0;
@@ -1195,7 +1222,7 @@
     study.wrong = 0;
     history = [];
 
-    $("#study-deck-name").textContent = fullName(deck) + (ahead ? " · révision en avance" : "");
+    $("#study-deck-name").textContent = title;
     $("#study-active").hidden = false;
     $("#study-end").hidden = true;
     show("study");
