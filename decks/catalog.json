@@ -33,5 +33,10 @@
     "file": "kanji-2.csv",
     "name": "Japonais · Kanji 2",
     "desc": "La suite : nature, adjectifs, verbes et vocabulaire du quotidien — 46 cartes"
+  },
+  {
+    "file": "thai.csv",
+    "name": "Thaï · Bases",
+    "desc": "Politesse, nombres, verbes et vocabulaire de voyage — 62 cartes"
   }
 ]
