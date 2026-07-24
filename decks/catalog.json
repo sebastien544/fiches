@@ -5,8 +5,13 @@
     "desc": "Salutations, politesse, nombres et vocabulaire de survie — 50 cartes"
   },
   {
-    "file": "kanji.csv",
-    "name": "Japonais · Kanji essentiels",
-    "desc": "Les kanji de base (niveau N5) — sens et lecture — 92 cartes"
+    "file": "kanji-1.csv",
+    "name": "Japonais · Kanji 1",
+    "desc": "Les tout premiers kanji : nombres, jours, personnes, positions — 46 cartes"
+  },
+  {
+    "file": "kanji-2.csv",
+    "name": "Japonais · Kanji 2",
+    "desc": "La suite : nature, adjectifs, verbes et vocabulaire du quotidien — 46 cartes"
   }
 ]
