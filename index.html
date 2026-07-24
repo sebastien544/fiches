@@ -29,7 +29,12 @@
     --shadow: 0 2px 4px rgba(31, 42, 68, .07), 0 12px 28px rgba(31, 42, 68, .09);
     --radius: 14px;
     --font-display: "Bricolage Grotesque", system-ui, sans-serif;
-    --font-hand: "Caveat", cursive;
+    /* Mincho : le serif japonais des manuels. Le navigateur choisit la police
+       caractère par caractère, donc le français reste en Caveat et seuls les
+       kana et kanji basculent en Mincho, même dans un texte mixte. */
+    --font-jp: "Hiragino Mincho ProN", "Hiragino Mincho Pro", "Yu Mincho",
+               YuMincho, "Noto Serif JP", "Noto Serif CJK JP", serif;
+    --font-hand: "Caveat", var(--font-jp), cursive;
     --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   }
 
@@ -461,6 +466,7 @@
     display: block;
     font-size: clamp(76px, 20vw, 140px);
     line-height: 1.15;
+    font-weight: 500;              /* Mincho en graisse normale : W6 serait trop lourd */
   }
 
   /* partie entre parenthèses : à la ligne, plus petite et discrète */
