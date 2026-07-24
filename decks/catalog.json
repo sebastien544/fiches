@@ -63,5 +63,10 @@
     "file": "russe-verbes.csv",
     "name": "Russe · Verbes courants",
     "desc": "53 verbes à l'infinitif — accent tonique marqué — 53 cartes"
+  },
+  {
+    "file": "russe-aspects.csv",
+    "name": "Russe · Paires d'aspect",
+    "desc": "Verbes par paires imperfectif / perfectif (l'imperfectif d'abord) — 37 cartes"
   }
 ]
