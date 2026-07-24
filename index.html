@@ -599,6 +599,22 @@
     text-overflow: ellipsis;   /* un nom long est tronqué, jamais débordant */
   }
 
+  .btn-audio {
+    background: none;
+    border: 1.5px solid rgba(31, 42, 68, .2);
+    border-radius: 999px;
+    color: var(--ink-soft);
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 18px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    transition: color .12s, border-color .12s;
+  }
+  .btn-audio:hover, .btn-audio.speaking { border-color: var(--bic); color: var(--bic); }
+  .btn-audio[hidden] { display: none; }
+
   .flip-hint { color: var(--ink-soft); font-size: 13.5px; }
   kbd {
     background: var(--card);
@@ -795,6 +811,8 @@
             </div>
           </button>
         </div>
+
+        <button class="btn-audio" id="btn-audio" type="button" hidden>🔊 Écouter<span class="hint-desktop"> <kbd>S</kbd></span></button>
 
         <p class="flip-hint" id="flip-hint"><span class="hint-desktop">Cliquez sur la fiche ou appuyez sur <kbd>Espace</kbd> pour la retourner</span><span class="hint-touch">Touchez la fiche pour la retourner</span></p>
 
@@ -1257,6 +1275,8 @@
     const flip = $("#fiche-flip");
     flip.classList.remove("flipped");
     $("#flip-hint").hidden = false;
+    $("#btn-audio").hidden = true;   // réaffiché avec le texte de la nouvelle carte
+    if ("speechSynthesis" in window) speechSynthesis.cancel();
     updateUndoBtn();
 
     if (study.queue.length === 0) { endSession(); return; }
@@ -1274,14 +1294,15 @@
       const paquet = study.deckOf.get(study.current) || "";
       $("#fiche-deck-front").textContent = paquet;
       $("#fiche-deck-back").textContent = paquet;
+      updateAudioBtn();
     }, prefersReducedMotion() ? 0 : 160);
   }
 
   // « 水 みず (mizu) » → « 水 みず » puis « (mizu) » à la ligne, en plus petit
   /* « 水 みず (mizu) » → la lecture passe à la ligne en petit et discret ;
      « ji « rare — dakuten de ち » » → la note passe à la ligne, surlignée au stabilo */
-  function setFicheText(node, text) {
-    node.textContent = "";
+  /* découpe « texte principal (lecture) « note » » en ses trois parties */
+  function parseFiche(text) {
     let main = text.trim();
     let note = null, sub = null;
 
@@ -1290,6 +1311,13 @@
 
     const mSub = main.match(/^(.*?)\s*(\(.+\))$/s);
     if (mSub && mSub[1]) { main = mSub[1].trim(); sub = mSub[2]; }
+
+    return { main, sub, note };
+  }
+
+  function setFicheText(node, text) {
+    node.textContent = "";
+    const { main, sub, note } = parseFiche(text);
 
     node.appendChild(el("span", "fiche-main" + (isSymbol(main) ? " symbol" : ""), main));
     if (sub) node.appendChild(el("span", "fiche-sub", sub));
@@ -1302,6 +1330,70 @@
     return CJK.test(s) && !/\s/.test(s) && [...s].length <= 3;
   }
 
+  /* ---------- Audio : synthèse vocale du navigateur ---------- */
+  /* La langue se déduit de l'écriture : pas de réglage à saisir par paquet. */
+  const VOICE_LANG = [
+    [/[぀-ヿ一-鿿]/, "ja-JP"],   // kana et kanji
+    [/[฀-๿]/,             "th-TH"],   // thaï
+    [/[가-힯]/,             "ko-KR"],   // coréen
+    [/[Ѐ-ӿ]/,             "ru-RU"],   // cyrillique
+  ];
+
+  /* Que prononcer pour une face ? On écarte la transcription et la note,
+     puis on ne garde que les mots réellement écrits dans cette langue :
+     « eau · みず (mizu) » se prononce みず, pas « eau mizu ». */
+  function speakInfo(raw) {
+    const main = parseFiche(raw).main;
+    for (const [re, lang] of VOICE_LANG) {
+      if (!re.test(main)) continue;
+      const mots = main.split(/\s*·\s*|\s+/).filter(p => re.test(p));
+      if (mots.length) return { text: mots.join(" "), lang };
+    }
+    return null;   // rien à prononcer (texte en français, romaji…)
+  }
+
+  // la face visible seulement : sur le recto, prononcer le verso vendrait la mèche
+  function visibleSide() {
+    if (!study.current) return null;
+    return $("#fiche-flip").classList.contains("flipped")
+      ? study.current.verso : study.current.recto;
+  }
+
+  function updateAudioBtn() {
+    const side = visibleSide();
+    $("#btn-audio").hidden = !(side && speakInfo(side));
+  }
+
+  function playAudio() {
+    const side = visibleSide();
+    const info = side && speakInfo(side);
+    if (!info) return;
+
+    if (!("speechSynthesis" in window)) {
+      toast("Ce navigateur ne sait pas lire à voix haute");
+      return;
+    }
+    speechSynthesis.cancel();   // coupe une lecture en cours
+
+    const u = new SpeechSynthesisUtterance(info.text);
+    u.lang = info.lang;
+    u.rate = 0.85;              // un peu lent : on apprend
+    const voix = speechSynthesis.getVoices();
+    const v = voix.find(v => v.lang.replace("_", "-").toLowerCase().startsWith(info.lang.slice(0, 2)));
+    if (v) u.voice = v;
+    else if (voix.length) {
+      toast("Aucune voix installée pour cette langue");
+      return;
+    }
+
+    const btn = $("#btn-audio");
+    btn.classList.add("speaking");
+    u.onend = u.onerror = () => btn.classList.remove("speaking");
+    speechSynthesis.speak(u);
+  }
+
+  $("#btn-audio").addEventListener("click", playAudio);
+
   function prefersReducedMotion() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   }
@@ -1310,6 +1402,7 @@
     const flip = $("#fiche-flip");
     flip.classList.toggle("flipped");
     $("#flip-hint").hidden = true;
+    updateAudioBtn();   // la face visible change, donc le texte à prononcer aussi
   }
 
   function answer(known) {
@@ -1412,6 +1505,8 @@
       answer(false);
     } else if (e.key === "2") {
       answer(true);
+    } else if (e.key === "s" || e.key === "S") {
+      playAudio();
     }
   });
 
