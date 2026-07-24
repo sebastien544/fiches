@@ -463,8 +463,16 @@
     margin-top: 4px;
   }
 
-  /* coup de stabilo derrière la réponse : trait irrégulier, un peu transparent */
-  .fiche-mark {
+  /* note supplémentaire, notée « … » dans la carte : seule chose surlignée au stabilo */
+  .fiche-note {
+    display: block;
+    width: fit-content;            /* le trait épouse le texte au lieu de toute la ligne */
+    max-width: 100%;
+    margin: 10px auto 0;
+    font-size: .5em;
+    font-weight: 500;
+    line-height: 1.4;
+    color: var(--ink);
     background-image: linear-gradient(
       98deg,
       rgba(255, 224, 102, 0)   0.5%,
@@ -474,11 +482,11 @@
       rgba(255, 224, 102, 0)  99.5%
     );
     background-repeat: no-repeat;
-    background-size: 100% 52%;      /* la bande ne couvre que le bas des lettres */
+    background-size: 100% 62%;     /* la bande ne couvre que le bas des lettres */
     background-position: 0 84%;
     -webkit-box-decoration-break: clone;
     box-decoration-break: clone;   /* chaque ligne reçoit son propre trait */
-    padding: 0 .14em;
+    padding: 0 .3em;
     border-radius: 2px;
   }
 
@@ -1047,20 +1055,28 @@
 
     // On attend la fin de l'animation de retour avant d'afficher le nouveau texte
     setTimeout(() => {
-      setFicheText($("#fiche-front-text"), study.current.recto, false);
-      setFicheText($("#fiche-back-text"), study.current.verso, true);
+      setFicheText($("#fiche-front-text"), study.current.recto);
+      setFicheText($("#fiche-back-text"), study.current.verso);
     }, prefersReducedMotion() ? 0 : 160);
   }
 
   // « 水 みず (mizu) » → « 水 みず » puis « (mizu) » à la ligne, en plus petit
-  function setFicheText(node, text, mark) {
+  /* « 水 みず (mizu) » → la lecture passe à la ligne en petit et discret ;
+     « ji « rare — dakuten de ち » » → la note passe à la ligne, surlignée au stabilo */
+  function setFicheText(node, text) {
     node.textContent = "";
-    const m = text.match(/^(.*?)\s*(\(.+\))$/s);
-    const main = (m && m[1]) ? m[1] : text;
-    const sub = (m && m[1]) ? m[2] : null;
-    // le stabilo souligne le mot clé, jamais la partie entre parenthèses
-    node.appendChild(mark ? el("span", "fiche-mark", main) : document.createTextNode(main));
+    let main = text.trim();
+    let note = null, sub = null;
+
+    const mNote = main.match(/^(.*?)\s*«\s*(.+?)\s*»$/s);
+    if (mNote && mNote[1]) { main = mNote[1].trim(); note = mNote[2]; }
+
+    const mSub = main.match(/^(.*?)\s*(\(.+\))$/s);
+    if (mSub && mSub[1]) { main = mSub[1].trim(); sub = mSub[2]; }
+
+    node.appendChild(document.createTextNode(main));
     if (sub) node.appendChild(el("span", "fiche-sub", sub));
+    if (note) node.appendChild(el("span", "fiche-note", note));
   }
 
   function prefersReducedMotion() {
