@@ -78,5 +78,10 @@
     "file": "francais-grammaire.csv",
     "name": "Français · Grammaire",
     "desc": "Pièges classiques : homophones, accords, participe passé — la règle et l'astuce pour la retenir — 40 cartes"
+  },
+  {
+    "file": "anglais.csv",
+    "name": "Anglais · Vocabulaire",
+    "desc": "Vocabulaire B2-C1 : verbes, adjectifs et noms utiles, avec quelques faux-amis — 57 cartes"
   }
 ]
