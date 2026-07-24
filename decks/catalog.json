@@ -73,5 +73,10 @@
     "file": "russe-phrases.csv",
     "name": "Russe · Phrases utiles",
     "desc": "Phrases de conversation et de voyage — accent tonique marqué, forme féminine notée — 45 cartes"
+  },
+  {
+    "file": "francais-grammaire.csv",
+    "name": "Français · Grammaire",
+    "desc": "Pièges classiques : homophones, accords, participe passé — la règle et l'astuce pour la retenir — 40 cartes"
   }
 ]
