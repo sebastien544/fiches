@@ -48,5 +48,10 @@
     "file": "thai.csv",
     "name": "Thaï · Bases",
     "desc": "Politesse, nombres, verbes et voyage — ton noté à l'accent : à bas · â descendant · á haut · ǎ montant — 62 cartes"
+  },
+  {
+    "file": "russe-alphabet.csv",
+    "name": "Russe · Alphabet",
+    "desc": "Les 33 lettres cyrilliques — son, nom et faux-amis (В se lit V, Н se lit N…) — 33 cartes"
   }
 ]
