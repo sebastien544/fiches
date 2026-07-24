@@ -292,6 +292,8 @@
   .catalog-row .info { flex: 1; min-width: 200px; }
   .catalog-row .info strong { font-size: 15.5px; }
   .catalog-row .info span { display: block; color: var(--ink-soft); font-size: 13.5px; }
+  .catalog-row .info .update-badge { color: var(--bic); font-weight: 600; margin-top: 3px; }
+  .catalog-row .info .uptodate-badge { color: var(--ink-soft); font-weight: 600; margin-top: 3px; opacity: .7; }
 
   .tools {
     margin-top: 36px;
@@ -1772,8 +1774,23 @@
     return { maj, ajout };
   }
 
+  /* Compte, sans rien modifier, ce qu'une mise à jour changerait : sert à
+     savoir si un paquet du catalogue diffère de la copie locale. */
+  function csvChanges(deck, rows) {
+    const byRecto = new Map();
+    for (const c of deck.cards) if (!byRecto.has(c.recto)) byRecto.set(c.recto, c);
+    let n = 0;
+    for (const [recto, verso] of rows) {
+      const existing = byRecto.get(recto);
+      if (!existing || existing.verso !== verso) n++;
+    }
+    return n;   // nombre de cartes à rafraîchir ou à ajouter
+  }
+
   /* ---------- Paquets prêts à l'emploi (catalogue hébergé avec l'app) ---------- */
   let catalogData = [];
+  const catalogCsv = new Map();      // fichier → texte du CSV (cache de session)
+  const updateStatus = new Map();    // fichier → nb de cartes à mettre à jour (undefined = pas encore vérifié)
 
   async function loadCatalog() {
     try {
@@ -1783,7 +1800,31 @@
       if (!Array.isArray(data) || data.length === 0) return;
       catalogData = data;
       renderCatalog();
+      checkCatalogUpdates();
     } catch { /* hors ligne ou fichier ouvert en local : la section reste masquée */ }
+  }
+
+  async function fetchCsv(file) {
+    if (catalogCsv.has(file)) return catalogCsv.get(file);
+    let text = null;
+    try {
+      const res = await fetch("decks/" + file, { cache: "no-cache" });
+      if (res.ok) text = await res.text();
+    } catch { /* hors ligne : on ne peut pas savoir, on réessaiera */ }
+    if (text !== null) catalogCsv.set(file, text);
+    return text;
+  }
+
+  /* Pour chaque paquet du catalogue déjà ajouté, on regarde en tâche de fond
+     s'il diffère de la copie locale, puis on rafraîchit l'affichage. */
+  async function checkCatalogUpdates() {
+    await Promise.all(catalogData.map(async (item) => {
+      const match = state.decks.find(d => fullName(d) === item.name);
+      if (!match) { updateStatus.delete(item.file); return; }
+      const text = await fetchCsv(item.file);
+      if (text !== null) updateStatus.set(item.file, csvChanges(match, parseCSV(text)));
+    }));
+    renderCatalog();
   }
 
   function renderCatalog() {
@@ -1799,20 +1840,33 @@
       row.appendChild(info);
 
       const match = state.decks.find(d => fullName(d) === item.name);
-      const btn = el("button", match ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm",
-                     match ? "Mettre à jour" : "Ajouter");
+      const pending = updateStatus.get(item.file);   // undefined = pas encore vérifié
+
+      // badge d'état pour un paquet déjà ajouté
+      if (match) {
+        if (pending > 0) info.appendChild(el("span", "update-badge", `● ${pending} carte${pending > 1 ? "s" : ""} à mettre à jour`));
+        else if (pending === 0) info.appendChild(el("span", "uptodate-badge", "✓ à jour"));
+      }
+
+      let label, cls, disabled = false;
+      if (!match) { label = "Ajouter"; cls = "btn btn-primary btn-sm"; }
+      else if (pending === 0) { label = "À jour"; cls = "btn btn-ghost btn-sm"; disabled = true; }
+      else if (pending > 0) { label = "Mettre à jour"; cls = "btn btn-primary btn-sm"; }
+      else { label = "Mettre à jour"; cls = "btn btn-ghost btn-sm"; }   // vérification en cours / hors ligne
+
+      const btn = el("button", cls, label);
       btn.type = "button";
+      btn.disabled = disabled;
       btn.title = match ? "Rafraîchir le contenu sans perdre la progression" : "";
       btn.addEventListener("click", async () => {
-        const label = btn.textContent;
         btn.disabled = true;
         btn.textContent = match ? "Mise à jour…" : "Ajout…";
         try {
-          const res = await fetch("decks/" + item.file, { cache: "no-cache" });
-          if (!res.ok) throw new Error();
-          const text = await res.text();
+          const text = await fetchCsv(item.file);
+          if (text === null) throw new Error();
           if (match) {
             const r = updateDeckFromCSV(match, text);
+            updateStatus.set(item.file, 0);
             renderHome();   // rafraîchit compteurs, catalogue et sections
             toast(r && (r.maj || r.ajout)
               ? `À jour : ${r.maj} carte${r.maj > 1 ? "s" : ""} rafraîchie${r.maj > 1 ? "s" : ""}` +
@@ -1820,6 +1874,7 @@
               : "Ce paquet est déjà à jour");
           } else {
             importCSV(item.name, text);
+            updateStatus.set(item.file, 0);
             renderCatalog();
           }
         } catch {
