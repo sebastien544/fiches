@@ -454,6 +454,15 @@
   }
   .fiche-face.back .fiche-text { color: var(--bic-dark); }
 
+  /* symbole isolé (kanji, kana) : il occupe la fiche.
+     Le texte principal est dans son propre élément pour que la lecture
+     et la note, dimensionnées en em, gardent leur taille d'origine. */
+  .fiche-main.symbol {
+    display: block;
+    font-size: clamp(76px, 20vw, 140px);
+    line-height: 1.15;
+  }
+
   /* partie entre parenthèses : à la ligne, plus petite et discrète */
   .fiche-sub {
     display: block;
@@ -1074,9 +1083,15 @@
     const mSub = main.match(/^(.*?)\s*(\(.+\))$/s);
     if (mSub && mSub[1]) { main = mSub[1].trim(); sub = mSub[2]; }
 
-    node.appendChild(document.createTextNode(main));
+    node.appendChild(el("span", "fiche-main" + (isSymbol(main) ? " symbol" : ""), main));
     if (sub) node.appendChild(el("span", "fiche-sub", sub));
     if (note) node.appendChild(el("span", "fiche-note", note));
+  }
+
+  // kana et kanji : un texte court en japonais s'affiche en très grand
+  const CJK = /[぀-ヿ㐀-䶿一-鿿]/;
+  function isSymbol(s) {
+    return CJK.test(s) && !/\s/.test(s) && [...s].length <= 3;
   }
 
   function prefersReducedMotion() {
