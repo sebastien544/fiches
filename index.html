@@ -206,6 +206,17 @@
     min-width: 170px;
   }
   .deck-path input:focus { outline: none; border-bottom-color: var(--bic); }
+  .deck-path .dir-label { margin-left: 8px; }
+  .deck-path select {
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px dashed var(--rule);
+    padding: 2px 4px;
+  }
+  .deck-path select:focus { outline: none; border-bottom-color: var(--bic); }
 
   /* ---------- Grille des paquets ---------- */
   .deck-grid {
@@ -791,6 +802,12 @@
       <label for="deck-folder-input">Dossier</label>
       <input id="deck-folder-input" type="text" list="folder-list" placeholder="Sans dossier" autocomplete="off" maxlength="40">
       <datalist id="folder-list"></datalist>
+      <label for="deck-dir-select" class="dir-label">Révision</label>
+      <select id="deck-dir-select" aria-label="Sens de révision">
+        <option value="rv">Recto → Verso</option>
+        <option value="vr">Verso → Recto</option>
+        <option value="mix">Alterné</option>
+      </select>
     </div>
     <div class="deck-title-row">
       <input id="deck-name-input" type="text" aria-label="Nom du paquet" maxlength="60">
@@ -830,12 +847,12 @@
             <div class="fiche-inner">
               <div class="fiche-face front">
                 <span class="fiche-deck" id="fiche-deck-front"></span>
-                <span class="fiche-corner">Recto</span>
+                <span class="fiche-corner" id="fiche-corner-front">Recto</span>
                 <div class="fiche-text" id="fiche-front-text"></div>
               </div>
               <div class="fiche-face back">
                 <span class="fiche-deck" id="fiche-deck-back"></span>
-                <span class="fiche-corner">Verso</span>
+                <span class="fiche-corner" id="fiche-corner-back">Verso</span>
                 <div class="fiche-text" id="fiche-back-text"></div>
               </div>
             </div>
@@ -923,6 +940,9 @@
   function migrate(data) {
     if (!data.collapsed) data.collapsed = {};
     if (typeof data.autoplay !== "boolean") data.autoplay = true;
+    for (const deck of data.decks) {
+      if (!["rv", "vr", "mix"].includes(deck.direction)) deck.direction = "rv";
+    }
     for (const deck of data.decks) {
       if (typeof deck.folder !== "string") Object.assign(deck, splitName(deck.name));
     }
@@ -1071,7 +1091,7 @@
   }
 
   function createDeck() {
-    const deck = { id: uid(), folder: "", name: "Nouveau paquet", cards: [] };
+    const deck = { id: uid(), folder: "", name: "Nouveau paquet", direction: "rv", cards: [] };
     state.decks.push(deck);
     save();
     openDeck(deck.id);
@@ -1086,6 +1106,7 @@
     const deck = getDeck(id);
     $("#deck-name-input").value = deck.name;
     $("#deck-folder-input").value = deck.folder || "";
+    $("#deck-dir-select").value = deck.direction || "rv";
     // autocomplétion : les dossiers déjà utilisés
     const list = $("#folder-list");
     list.innerHTML = "";
@@ -1101,6 +1122,11 @@
 
   $("#deck-folder-input").addEventListener("change", (e) => {
     getDeck(currentDeckId).folder = e.target.value.trim();
+    save();
+  });
+
+  $("#deck-dir-select").addEventListener("change", (e) => {
+    getDeck(currentDeckId).direction = e.target.value;
     save();
   });
 
@@ -1248,8 +1274,28 @@
   }
 
   /* ---------- Révision ---------- */
-  const study = { queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0, deckOf: new Map() };
+  const study = {
+    queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0,
+    deckOf: new Map(),   // carte → paquet d'origine
+    sideOf: new Map(),   // carte → face inversée ? (fige le mode « alterné » sur la session)
+    frontText: "", backText: "",
+  };
   let history = [];   // pile d'états pour annuler la dernière réponse
+
+  /* Quelle face montrer en premier, selon le sens réglé sur le paquet.
+     « rv » recto→verso · « vr » verso→recto · « mix » tiré au sort par carte. */
+  function facesOf(card) {
+    const deck = study.deckOf.get(card);
+    const dir = deck ? deck.direction : "rv";
+    let reversed = dir === "vr";
+    if (dir === "mix") {
+      if (!study.sideOf.has(card)) study.sideOf.set(card, Math.random() < 0.5);
+      reversed = study.sideOf.get(card);
+    }
+    return reversed
+      ? { front: card.verso, back: card.recto, frontLabel: "Verso", backLabel: "Recto" }
+      : { front: card.recto, back: card.verso, frontLabel: "Recto", backLabel: "Verso" };
+  }
 
   function shuffle(arr) {
     for (let i = arr.length - 1; i > 0; i--) {
@@ -1287,8 +1333,9 @@
   function beginSession(pool, title) {
     // de quel paquet vient chaque carte : les cartes ne le savent pas elles-mêmes
     study.deckOf = new Map();
+    study.sideOf = new Map();
     for (const deck of state.decks) {
-      for (const card of deck.cards) study.deckOf.set(card, fullName(deck));
+      for (const card of deck.cards) study.deckOf.set(card, deck);
     }
 
     study.queue = shuffle(pool.slice());
@@ -1321,11 +1368,18 @@
     const pct = study.total ? Math.round((study.done / study.total) * 100) : 0;
     $("#progress-fill").style.width = pct + "%";
 
+    const faces = facesOf(study.current);
+    study.frontText = faces.front;
+    study.backText = faces.back;
+
     // On attend la fin de l'animation de retour avant d'afficher le nouveau texte
     setTimeout(() => {
-      setFicheText($("#fiche-front-text"), study.current.recto);
-      setFicheText($("#fiche-back-text"), study.current.verso);
-      const paquet = study.deckOf.get(study.current) || "";
+      setFicheText($("#fiche-front-text"), faces.front);
+      setFicheText($("#fiche-back-text"), faces.back);
+      $("#fiche-corner-front").textContent = faces.frontLabel;
+      $("#fiche-corner-back").textContent = faces.backLabel;
+      const deck = study.deckOf.get(study.current);
+      const paquet = deck ? fullName(deck) : "";
       $("#fiche-deck-front").textContent = paquet;
       $("#fiche-deck-back").textContent = paquet;
       updateAudioBtn();
@@ -1391,11 +1445,11 @@
     return null;   // rien à prononcer (texte en français, romaji…)
   }
 
-  // la face visible seulement : sur le recto, prononcer le verso vendrait la mèche
+  // la face visible seulement : prononcer la face cachée vendrait la mèche
   function visibleSide() {
     if (!study.current) return null;
     return $("#fiche-flip").classList.contains("flipped")
-      ? study.current.verso : study.current.recto;
+      ? study.backText : study.frontText;
   }
 
   function updateAudioBtn() {
@@ -1590,6 +1644,7 @@
         state.decks.push({
           id: uid(),
           ...(typeof d.folder === "string" ? { folder: d.folder, name: d.name } : splitName(d.name)),
+          direction: ["rv", "vr", "mix"].includes(d.direction) ? d.direction : "rv",
           cards: d.cards
             .filter(c => typeof c.recto === "string" && typeof c.verso === "string")
             .map(c => ({
@@ -1657,6 +1712,7 @@
     state.decks.push({
       id: uid(),
       ...splitName(name),   // « Japonais · Hiragana » arrive rangé dans son dossier
+      direction: "rv",
       cards: rows.map(r => ({ id: uid(), recto: r[0], verso: r[1], box: 1, due: Date.now() })),
     });
     save();
