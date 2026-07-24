@@ -1688,10 +1688,10 @@
     }
   }
 
-  /* CSV : une carte par ligne, « recto;verso » ou « recto,verso » (guillemets acceptés) */
-  function importCSV(deckName, text) {
+  /* CSV → lignes [recto, verso] ; « recto;verso » ou « recto,verso » (guillemets acceptés) */
+  function parseCSV(text) {
     const lines = text.replace(/^﻿/, "").split(/\r\n|\n|\r/).filter(l => l.trim() !== "");
-    if (lines.length === 0) { toast("Ce fichier CSV est vide"); return; }
+    if (lines.length === 0) return [];
 
     // Détection du séparateur le plus fréquent sur la première ligne : ; , ou tabulation
     const first = lines[0];
@@ -1726,11 +1726,15 @@
     const header = /^(recto|verso|question|r[ée]ponse|front|back|term|definition)$/i;
     if (rows.length && header.test(rows[0][0]) && header.test(rows[0][1])) rows = rows.slice(1);
 
+    return rows;
+  }
+
+  function importCSV(deckName, text) {
+    const rows = parseCSV(text);
     if (rows.length === 0) {
       toast("Aucune carte trouvée — attendu : une ligne « recto;verso » par carte");
       return;
     }
-
     const name = deckName.slice(0, 60) || "Import CSV";
     state.decks.push({
       id: uid(),
@@ -1741,6 +1745,31 @@
     save();
     renderHome();
     toast(`${rows.length} carte${rows.length > 1 ? "s" : ""} importée${rows.length > 1 ? "s" : ""} dans « ${name} »`);
+  }
+
+  /* Rafraîchit un paquet depuis son CSV du catalogue sans perdre la progression :
+     on retrouve chaque carte par son recto et on n'actualise que le verso, en
+     gardant sa boîte et sa date. Les nouvelles cartes sont ajoutées ; celles
+     absentes du CSV (ajoutées par l'utilisateur) sont conservées. */
+  function updateDeckFromCSV(deck, text) {
+    const rows = parseCSV(text);
+    if (rows.length === 0) return null;
+
+    const byRecto = new Map();
+    for (const c of deck.cards) if (!byRecto.has(c.recto)) byRecto.set(c.recto, c);
+
+    let maj = 0, ajout = 0;
+    for (const [recto, verso] of rows) {
+      const existing = byRecto.get(recto);
+      if (existing) {
+        if (existing.verso !== verso) { existing.verso = verso; maj++; }
+      } else {
+        deck.cards.push({ id: uid(), recto, verso, box: 1, due: Date.now() });
+        ajout++;
+      }
+    }
+    save();
+    return { maj, ajout };
   }
 
   /* ---------- Paquets prêts à l'emploi (catalogue hébergé avec l'app) ---------- */
@@ -1769,22 +1798,33 @@
       if (item.desc) info.appendChild(el("span", "", item.desc));
       row.appendChild(info);
 
-      const already = state.decks.some(d => fullName(d) === item.name);
-      const btn = el("button", already ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm",
-                     already ? "Déjà ajouté" : "Ajouter");
+      const match = state.decks.find(d => fullName(d) === item.name);
+      const btn = el("button", match ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm",
+                     match ? "Mettre à jour" : "Ajouter");
       btn.type = "button";
-      btn.disabled = already;
+      btn.title = match ? "Rafraîchir le contenu sans perdre la progression" : "";
       btn.addEventListener("click", async () => {
+        const label = btn.textContent;
         btn.disabled = true;
-        btn.textContent = "Ajout…";
+        btn.textContent = match ? "Mise à jour…" : "Ajout…";
         try {
           const res = await fetch("decks/" + item.file, { cache: "no-cache" });
           if (!res.ok) throw new Error();
-          importCSV(item.name, await res.text());
-          renderCatalog();
+          const text = await res.text();
+          if (match) {
+            const r = updateDeckFromCSV(match, text);
+            renderHome();   // rafraîchit compteurs, catalogue et sections
+            toast(r && (r.maj || r.ajout)
+              ? `À jour : ${r.maj} carte${r.maj > 1 ? "s" : ""} rafraîchie${r.maj > 1 ? "s" : ""}` +
+                (r.ajout ? `, ${r.ajout} ajoutée${r.ajout > 1 ? "s" : ""}` : "")
+              : "Ce paquet est déjà à jour");
+          } else {
+            importCSV(item.name, text);
+            renderCatalog();
+          }
         } catch {
           btn.disabled = false;
-          btn.textContent = "Ajouter";
+          btn.textContent = label;
           toast("Impossible de télécharger ce paquet — vérifiez la connexion");
         }
       });
