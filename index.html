@@ -1499,7 +1499,9 @@
 
     const u = new SpeechSynthesisUtterance(info.text);
     u.lang = info.lang;
-    u.rate = 0.85;              // un peu lent : on apprend
+    // Un peu lent pour apprendre, mais le thaï est une langue à tons : le
+    // ralenti déforme la prononciation, on le lit donc à vitesse naturelle.
+    u.rate = info.lang === "th-TH" ? 1 : 0.85;
     const voix = speechSynthesis.getVoices();
     const v = voix.find(v => v.lang.replace("_", "-").toLowerCase().startsWith(info.lang.slice(0, 2)));
     if (v) u.voice = v;
