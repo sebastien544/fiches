@@ -68,5 +68,10 @@
     "file": "russe-aspects.csv",
     "name": "Russe · Paires d'aspect",
     "desc": "Verbes par paires imperfectif / perfectif (l'imperfectif d'abord) — 37 cartes"
+  },
+  {
+    "file": "russe-phrases.csv",
+    "name": "Russe · Phrases utiles",
+    "desc": "Phrases de conversation et de voyage — accent tonique marqué, forme féminine notée — 45 cartes"
   }
 ]
