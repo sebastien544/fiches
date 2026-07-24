@@ -1437,11 +1437,19 @@
   /* Que prononcer pour une face ? On écarte la transcription et la note,
      puis on ne garde que les mots réellement écrits dans cette langue :
      « eau · みず (mizu) » se prononce みず, pas « eau mizu ». */
+  const HAS_KANJI = /[一-鿿㐀-䶿]/;
   function speakInfo(raw) {
     const main = parseFiche(raw).main;
     for (const [re, lang] of VOICE_LANG) {
       if (!re.test(main)) continue;
-      const mots = main.split(/\s*·\s*|\s+/).filter(p => re.test(p));
+      let mots = main.split(/\s*·\s*|\s+/).filter(p => re.test(p));
+      // Japonais : une carte montre souvent le kanji ET sa lecture kana
+      // (« 今日 きょう ») — deux écritures du même mot. On ne prononce alors
+      // que la lecture kana, sinon le mot serait lu deux fois.
+      if (lang === "ja-JP") {
+        const kana = mots.filter(p => !HAS_KANJI.test(p));
+        if (kana.length && kana.length < mots.length) mots = kana;
+      }
       if (mots.length) return { text: mots.join(" "), lang };
     }
     return null;   // rien à prononcer (texte en français, romaji…)
