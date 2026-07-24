@@ -3,5 +3,10 @@
     "file": "japonais.csv",
     "name": "Japonais · Bases",
     "desc": "Salutations, politesse, nombres et vocabulaire de survie — 50 cartes"
+  },
+  {
+    "file": "kanji.csv",
+    "name": "Japonais · Kanji essentiels",
+    "desc": "Les kanji de base (niveau N5) — sens et lecture — 92 cartes"
   }
 ]
