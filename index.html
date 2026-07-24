@@ -34,7 +34,8 @@
        kana et kanji basculent en Mincho, même dans un texte mixte. */
     --font-jp: "Hiragino Mincho ProN", "Hiragino Mincho Pro", "Yu Mincho",
                YuMincho, "Noto Serif JP", "Noto Serif CJK JP", serif;
-    --font-hand: "Caveat", var(--font-jp), cursive;
+    --font-th: "Thonburi", "Leelawadee UI", "Noto Sans Thai", "Tahoma", sans-serif;
+    --font-hand: "Caveat", var(--font-jp), var(--font-th), cursive;
     --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
   }
 
@@ -1357,10 +1358,10 @@
     if (note) node.appendChild(el("span", "fiche-note", note));
   }
 
-  // kana et kanji : un texte court en japonais s'affiche en très grand
-  const CJK = /[぀-ヿ㐀-䶿一-鿿]/;
+  // un signe isolé (kana, kanji, lettre thaïe) s'affiche en très grand
+  const SYMBOL_SCRIPTS = /[぀-ヿ㐀-䶿一-鿿฀-๿]/;
   function isSymbol(s) {
-    return CJK.test(s) && !/\s/.test(s) && [...s].length <= 3;
+    return SYMBOL_SCRIPTS.test(s) && !/\s/.test(s) && [...s].length <= 3;
   }
 
   /* ---------- Audio : synthèse vocale du navigateur ---------- */
