@@ -53,5 +53,10 @@
     "file": "russe-alphabet.csv",
     "name": "Russe · Alphabet",
     "desc": "Les 33 lettres cyrilliques — son, nom et faux-amis (В se lit V, Н se lit N…) — 33 cartes"
+  },
+  {
+    "file": "russe.csv",
+    "name": "Russe · Bases",
+    "desc": "Politesse, nombres, pronoms et voyage — accent tonique marqué sur la transcription — 64 cartes"
   }
 ]
