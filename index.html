@@ -1357,7 +1357,9 @@
     flip.classList.remove("flipped");
     $("#flip-hint").hidden = false;
     $("#audio-row").hidden = true;   // réaffiché avec le texte de la nouvelle carte
-    if ("speechSynthesis" in window) speechSynthesis.cancel();
+    if ("speechSynthesis" in window && (speechSynthesis.speaking || speechSynthesis.pending)) {
+      speechSynthesis.cancel();
+    }
     updateUndoBtn();
 
     if (study.queue.length === 0) { endSession(); return; }
@@ -1465,7 +1467,8 @@
     toast(state.autoplay ? "Lecture automatique activée" : "Lecture automatique désactivée");
   });
 
-  function playAudio() {
+  let lastSpeakAt = 0;
+  function playAudio(force) {
     const side = visibleSide();
     const info = side && speakInfo(side);
     if (!info) return;
@@ -1474,7 +1477,17 @@
       toast("Ce navigateur ne sait pas lire à voix haute");
       return;
     }
-    speechSynthesis.cancel();   // coupe une lecture en cours
+
+    // La lecture auto se déclenche au retournement : on absorbe un éventuel
+    // double déclenchement rapproché pour ne pas lire deux fois. Le bouton
+    // « Écouter » et la touche S forcent la lecture (force = true).
+    const now = Date.now();
+    if (!force && now - lastSpeakAt < 600) return;
+    lastSpeakAt = now;
+
+    // Sur iOS, cancel() alors que rien ne joue peut relancer une lecture
+    // fantôme : on ne coupe que s'il y a réellement quelque chose en cours.
+    if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
 
     const u = new SpeechSynthesisUtterance(info.text);
     u.lang = info.lang;
@@ -1493,7 +1506,7 @@
     speechSynthesis.speak(u);
   }
 
-  $("#btn-audio").addEventListener("click", playAudio);
+  $("#btn-audio").addEventListener("click", () => playAudio(true));
 
   function prefersReducedMotion() {
     return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -1610,7 +1623,7 @@
     } else if (e.key === "2") {
       answer(true);
     } else if (e.key === "s" || e.key === "S") {
-      playAudio();
+      playAudio(true);
     }
   });
 
