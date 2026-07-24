@@ -58,5 +58,10 @@
     "file": "russe.csv",
     "name": "Russe · Bases",
     "desc": "Politesse, nombres, pronoms et voyage — accent tonique marqué sur la transcription — 64 cartes"
+  },
+  {
+    "file": "russe-verbes.csv",
+    "name": "Russe · Verbes courants",
+    "desc": "53 verbes à l'infinitif — accent tonique marqué — 53 cartes"
   }
 ]
