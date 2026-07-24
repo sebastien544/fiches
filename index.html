@@ -584,6 +584,21 @@
     opacity: .65;
   }
 
+  /* nom du paquet, à gauche de la marge rouge — utile en révision mélangée */
+  .fiche-deck {
+    position: absolute;
+    top: 12px;
+    left: 68px;                /* après le trait de marge */
+    right: 74px;               /* laisse la place au « Recto » / « Verso » */
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink-soft);
+    opacity: .6;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;   /* un nom long est tronqué, jamais débordant */
+  }
+
   .flip-hint { color: var(--ink-soft); font-size: 13.5px; }
   kbd {
     background: var(--card);
@@ -672,6 +687,7 @@
     .card-row .faces { grid-template-columns: 1fr; gap: 4px; }
     .fiche-flip { height: 260px; }
     .fiche-face { padding: 24px 24px 24px 58px; }
+    .fiche-deck { left: 58px; right: 68px; }
   }
 
   /* ---------- Tactile (iPad, mobile) ---------- */
@@ -767,10 +783,12 @@
           <button class="fiche-flip" id="fiche-flip" type="button" aria-label="Retourner la fiche">
             <div class="fiche-inner">
               <div class="fiche-face front">
+                <span class="fiche-deck" id="fiche-deck-front"></span>
                 <span class="fiche-corner">Recto</span>
                 <div class="fiche-text" id="fiche-front-text"></div>
               </div>
               <div class="fiche-face back">
+                <span class="fiche-deck" id="fiche-deck-back"></span>
                 <span class="fiche-corner">Verso</span>
                 <div class="fiche-text" id="fiche-back-text"></div>
               </div>
@@ -1178,7 +1196,7 @@
   }
 
   /* ---------- Révision ---------- */
-  const study = { queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0 };
+  const study = { queue: [], current: null, total: 0, done: 0, right: 0, wrong: 0, deckOf: new Map() };
   let history = [];   // pile d'états pour annuler la dernière réponse
 
   function shuffle(arr) {
@@ -1215,6 +1233,12 @@
   }
 
   function beginSession(pool, title) {
+    // de quel paquet vient chaque carte : les cartes ne le savent pas elles-mêmes
+    study.deckOf = new Map();
+    for (const deck of state.decks) {
+      for (const card of deck.cards) study.deckOf.set(card, fullName(deck));
+    }
+
     study.queue = shuffle(pool.slice());
     study.total = pool.length;
     study.done = 0;
@@ -1247,6 +1271,9 @@
     setTimeout(() => {
       setFicheText($("#fiche-front-text"), study.current.recto);
       setFicheText($("#fiche-back-text"), study.current.verso);
+      const paquet = study.deckOf.get(study.current) || "";
+      $("#fiche-deck-front").textContent = paquet;
+      $("#fiche-deck-back").textContent = paquet;
     }, prefersReducedMotion() ? 0 : 160);
   }
 
