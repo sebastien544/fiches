@@ -139,6 +139,65 @@
   .btn-danger-soft:hover { border-color: var(--margin); }
   .btn-sm { padding: 6px 12px; font-size: 13.5px; border-radius: 8px; }
 
+  /* ---------- Dossiers (sections repliables) ---------- */
+  #deck-sections { display: flex; flex-direction: column; gap: 30px; }
+
+  .folder-head {
+    width: 100%;
+    background: none;
+    border: none;
+    border-bottom: 1.5px solid var(--rule);
+    padding: 2px 0 10px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    text-align: left;
+    color: var(--ink);
+  }
+  .folder-head .caret {
+    color: var(--ink-soft);
+    font-size: 11px;
+    width: 11px;
+    flex-shrink: 0;
+  }
+  .folder-head .folder-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.2px;
+    overflow-wrap: anywhere;
+  }
+  .folder-head:hover .folder-name { color: var(--bic); }
+  .folder-head .folder-meta {
+    color: var(--ink-soft);
+    font-size: 13.5px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .folder-head .folder-meta b { color: var(--margin); font-weight: 600; }
+
+  /* champ « dossier » dans la vue paquet */
+  .deck-path { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+  .deck-path label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--ink-soft);
+  }
+  .deck-path input {
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 1.5px dashed var(--rule);
+    padding: 2px 4px;
+    min-width: 170px;
+  }
+  .deck-path input:focus { outline: none; border-bottom-color: var(--bic); }
+
   /* ---------- Grille des paquets ---------- */
   .deck-grid {
     display: grid;
@@ -637,7 +696,7 @@
       <h1>Mes paquets</h1>
     </div>
     <p class="due-summary" id="due-summary"></p>
-    <div class="deck-grid" id="deck-grid"></div>
+    <div id="deck-sections"></div>
 
     <div id="catalog-section" hidden>
       <h2 class="catalog-title">Paquets prêts à l'emploi</h2>
@@ -655,6 +714,11 @@
   <!-- ========== VUE PAQUET ========== -->
   <section id="view-deck" class="view">
     <button class="back-link" data-nav="home" type="button">← Mes paquets</button>
+    <div class="deck-path">
+      <label for="deck-folder-input">Dossier</label>
+      <input id="deck-folder-input" type="text" list="folder-list" placeholder="Sans dossier" autocomplete="off" maxlength="40">
+      <datalist id="folder-list"></datalist>
+    </div>
     <div class="deck-title-row">
       <input id="deck-name-input" type="text" aria-label="Nom du paquet" maxlength="60">
       <button class="btn btn-primary btn-sm" id="btn-study-from-deck" type="button">Réviser</button>
@@ -755,13 +819,32 @@
     };
   }
 
+  /* « Japonais · Hiragana » → dossier « Japonais », paquet « Hiragana » */
+  function splitName(full) {
+    const i = full.indexOf(" · ");
+    return i > 0
+      ? { folder: full.slice(0, i).trim(), name: full.slice(i + 3).trim() }
+      : { folder: "", name: full.trim() };
+  }
+  const fullName = (deck) => deck.folder ? deck.folder + " · " + deck.name : deck.name;
+
   function load() {
     try {
       const raw = localStorage.getItem(STORE_KEY);
-      if (raw) return JSON.parse(raw);
+      if (raw) return migrate(JSON.parse(raw));
     } catch (e) { /* données illisibles : on repart de zéro */ }
-    const data = seedData();
+    const data = migrate(seedData());
     localStorage.setItem(STORE_KEY, JSON.stringify(data));
+    return data;
+  }
+
+  /* Avant les dossiers, le nom portait le classement (« Japonais · Kanji 1 »).
+     On en déduit le dossier une seule fois ; ensuite le champ folder fait foi. */
+  function migrate(data) {
+    if (!data.collapsed) data.collapsed = {};
+    for (const deck of data.decks) {
+      if (typeof deck.folder !== "string") Object.assign(deck, splitName(deck.name));
+    }
     return data;
   }
 
@@ -812,50 +895,101 @@
 
   /* ---------- Accueil ---------- */
   function renderHome() {
-    const grid = $("#deck-grid");
-    grid.innerHTML = "";
+    const root = $("#deck-sections");
+    root.innerHTML = "";
 
     const totalDue = state.decks.reduce((n, d) => n + dueCards(d).length, 0);
     $("#due-summary").innerHTML = totalDue > 0
       ? `<strong>${totalDue} carte${totalDue > 1 ? "s" : ""}</strong> à réviser aujourd'hui`
       : "Rien à réviser pour le moment — tout est à jour.";
 
+    // regroupement par dossier, dans l'ordre d'apparition ; le vrac finit en bas
+    const groups = new Map();
     for (const deck of state.decks) {
-      const due = dueCards(deck).length;
-      const tile = el("div", "deck-tile" + (due ? " has-due" : ""));
+      const key = deck.folder || "";
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(deck);
+    }
+    const keys = [...groups.keys()].sort((a, b) => (a === "" ? 1 : 0) - (b === "" ? 1 : 0));
+    // un seul groupe sans nom : inutile d'afficher un en-tête « Sans dossier »
+    const withHeads = !(keys.length === 1 && keys[0] === "");
 
-      tile.appendChild(el("h2", "", deck.name));
-
-      const meta = el("div", "deck-meta", `${deck.cards.length} carte${deck.cards.length > 1 ? "s" : ""}`);
-      if (due) {
-        const badge = el("span", "due-badge", `${due} à réviser`);
-        meta.appendChild(badge);
-      }
-      tile.appendChild(meta);
-
-      const actions = el("div", "deck-actions");
-      const btnStudy = el("button", due ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm", "Réviser");
-      btnStudy.type = "button";
-      btnStudy.addEventListener("click", () => startStudy(deck.id));
-      const btnManage = el("button", "btn btn-ghost btn-sm", "Gérer");
-      btnManage.type = "button";
-      btnManage.addEventListener("click", () => openDeck(deck.id));
-      actions.append(btnStudy, btnManage);
-      tile.appendChild(actions);
-
-      grid.appendChild(tile);
+    for (const key of keys) {
+      root.appendChild(folderSection(key, groups.get(key), withHeads));
     }
 
+    const last = el("div", "deck-grid");
     const newTile = el("button", "new-deck-tile", "+ Nouveau paquet");
     newTile.type = "button";
     newTile.addEventListener("click", createDeck);
-    grid.appendChild(newTile);
+    last.appendChild(newTile);
+    root.appendChild(last);
 
     renderCatalog();   // met à jour l'état « Déjà ajouté » du catalogue
   }
 
+  function folderSection(folder, decks, withHead) {
+    const sec = el("section");
+
+    if (withHead) {
+      const due = decks.reduce((n, d) => n + dueCards(d).length, 0);
+      const collapsed = !!state.collapsed[folder];
+
+      const head = el("button", "folder-head");
+      head.type = "button";
+      head.setAttribute("aria-expanded", String(!collapsed));
+      head.append(
+        el("span", "caret", collapsed ? "▶" : "▼"),
+        el("span", "folder-name", folder || "Sans dossier")
+      );
+      const meta = el("span", "folder-meta",
+        `${decks.length} paquet${decks.length > 1 ? "s" : ""}`);
+      if (due) {
+        meta.appendChild(document.createTextNode(" · "));
+        meta.appendChild(el("b", "", `${due} à réviser`));
+      }
+      head.appendChild(meta);
+      head.addEventListener("click", () => {
+        state.collapsed[folder] = !collapsed;
+        save();
+        renderHome();
+      });
+      sec.appendChild(head);
+
+      if (collapsed) return sec;
+    }
+
+    const grid = el("div", "deck-grid");
+    for (const deck of decks) grid.appendChild(deckTile(deck));
+    sec.appendChild(grid);
+    return sec;
+  }
+
+  function deckTile(deck) {
+    const due = dueCards(deck).length;
+    const tile = el("div", "deck-tile" + (due ? " has-due" : ""));
+
+    tile.appendChild(el("h2", "", deck.name));
+
+    const meta = el("div", "deck-meta", `${deck.cards.length} carte${deck.cards.length > 1 ? "s" : ""}`);
+    if (due) meta.appendChild(el("span", "due-badge", `${due} à réviser`));
+    tile.appendChild(meta);
+
+    const actions = el("div", "deck-actions");
+    const btnStudy = el("button", due ? "btn btn-primary btn-sm" : "btn btn-ghost btn-sm", "Réviser");
+    btnStudy.type = "button";
+    btnStudy.addEventListener("click", () => startStudy(deck.id));
+    const btnManage = el("button", "btn btn-ghost btn-sm", "Gérer");
+    btnManage.type = "button";
+    btnManage.addEventListener("click", () => openDeck(deck.id));
+    actions.append(btnStudy, btnManage);
+    tile.appendChild(actions);
+
+    return tile;
+  }
+
   function createDeck() {
-    const deck = { id: uid(), name: "Nouveau paquet", cards: [] };
+    const deck = { id: uid(), folder: "", name: "Nouveau paquet", cards: [] };
     state.decks.push(deck);
     save();
     openDeck(deck.id);
@@ -869,10 +1003,24 @@
     currentDeckId = id;
     const deck = getDeck(id);
     $("#deck-name-input").value = deck.name;
+    $("#deck-folder-input").value = deck.folder || "";
+    // autocomplétion : les dossiers déjà utilisés
+    const list = $("#folder-list");
+    list.innerHTML = "";
+    for (const f of [...new Set(state.decks.map(d => d.folder).filter(Boolean))].sort()) {
+      const opt = document.createElement("option");
+      opt.value = f;
+      list.appendChild(opt);
+    }
     renderCardList();
     show("deck");
     $("#input-recto").focus();
   }
+
+  $("#deck-folder-input").addEventListener("change", (e) => {
+    getDeck(currentDeckId).folder = e.target.value.trim();
+    save();
+  });
 
   $("#deck-name-input").addEventListener("change", (e) => {
     const deck = getDeck(currentDeckId);
@@ -1047,7 +1195,7 @@
     study.wrong = 0;
     history = [];
 
-    $("#study-deck-name").textContent = deck.name + (ahead ? " · révision en avance" : "");
+    $("#study-deck-name").textContent = fullName(deck) + (ahead ? " · révision en avance" : "");
     $("#study-active").hidden = false;
     $("#study-end").hidden = true;
     show("study");
@@ -1242,7 +1390,7 @@
         if (typeof d.name !== "string" || !Array.isArray(d.cards)) continue;
         state.decks.push({
           id: uid(),
-          name: d.name,
+          ...(typeof d.folder === "string" ? { folder: d.folder, name: d.name } : splitName(d.name)),
           cards: d.cards
             .filter(c => typeof c.recto === "string" && typeof c.verso === "string")
             .map(c => ({
@@ -1309,7 +1457,7 @@
     const name = deckName.slice(0, 60) || "Import CSV";
     state.decks.push({
       id: uid(),
-      name,
+      ...splitName(name),   // « Japonais · Hiragana » arrive rangé dans son dossier
       cards: rows.map(r => ({ id: uid(), recto: r[0], verso: r[1], box: 1, due: Date.now() })),
     });
     save();
@@ -1343,7 +1491,7 @@
       if (item.desc) info.appendChild(el("span", "", item.desc));
       row.appendChild(info);
 
-      const already = state.decks.some(d => d.name === item.name);
+      const already = state.decks.some(d => fullName(d) === item.name);
       const btn = el("button", already ? "btn btn-ghost btn-sm" : "btn btn-primary btn-sm",
                      already ? "Déjà ajouté" : "Ajouter");
       btn.type = "button";
