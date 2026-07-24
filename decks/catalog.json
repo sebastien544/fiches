@@ -1,5 +1,15 @@
 [
   {
+    "file": "hiragana.csv",
+    "name": "Japonais · Hiragana",
+    "desc": "Les 46 signes du syllabaire de base — signe vers son — 46 cartes"
+  },
+  {
+    "file": "katakana.csv",
+    "name": "Japonais · Katakana",
+    "desc": "Les 46 signes utilisés pour les mots étrangers — mêmes sons que les hiragana — 46 cartes"
+  },
+  {
     "file": "japonais.csv",
     "name": "Japonais · Bases",
     "desc": "Salutations, politesse, nombres et vocabulaire de survie — 50 cartes"
