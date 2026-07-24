@@ -1360,8 +1360,13 @@
 
   // un signe isolé (kana, kanji, lettre thaïe) s'affiche en très grand
   const SYMBOL_SCRIPTS = /[぀-ヿ㐀-䶿一-鿿฀-๿]/;
+  /* Les voyelles thaïes s'écrivent au-dessus ou en dessous de la consonne :
+     ce sont des signes combinants, qui n'occupent aucune place à l'écran.
+     On ne les compte donc pas dans la longueur. */
+  const COMBINING = /[ัิ-ฺ็-๎̀-ͯ]/g;
   function isSymbol(s) {
-    return SYMBOL_SCRIPTS.test(s) && !/\s/.test(s) && [...s].length <= 3;
+    return SYMBOL_SCRIPTS.test(s) && !/\s/.test(s)
+      && [...s.replace(COMBINING, "")].length <= 3;
   }
 
   /* ---------- Audio : synthèse vocale du navigateur ---------- */

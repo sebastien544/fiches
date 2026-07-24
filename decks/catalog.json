@@ -40,6 +40,11 @@
     "desc": "Les 44 consonnes avec leur nom, leur son et leur classe de ton — 44 cartes"
   },
   {
+    "file": "thai-voyelles.csv",
+    "name": "Thaï · Voyelles",
+    "desc": "Les 32 voyelles, avec leur son et leur position autour de la consonne — 32 cartes"
+  },
+  {
     "file": "thai.csv",
     "name": "Thaï · Bases",
     "desc": "Politesse, nombres, verbes et vocabulaire de voyage — 62 cartes"
