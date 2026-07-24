@@ -5,9 +5,19 @@
     "desc": "Les 46 signes du syllabaire de base — signe vers son — 46 cartes"
   },
   {
+    "file": "hiragana-derives.csv",
+    "name": "Japonais · Hiragana dérivés",
+    "desc": "Dakuten, handakuten et combinaisons : が, ざ, ぱ, きゃ, しゅ… — 58 cartes"
+  },
+  {
     "file": "katakana.csv",
     "name": "Japonais · Katakana",
     "desc": "Les 46 signes utilisés pour les mots étrangers — mêmes sons que les hiragana — 46 cartes"
+  },
+  {
+    "file": "katakana-derives.csv",
+    "name": "Japonais · Katakana dérivés",
+    "desc": "Dakuten, handakuten et combinaisons : ガ, ザ, パ, キャ, シュ… — 58 cartes"
   },
   {
     "file": "japonais.csv",
